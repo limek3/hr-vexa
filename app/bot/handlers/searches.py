@@ -1,13 +1,14 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import compact_values, search_card, source_list
-from app.bot.keyboards.inline import search_actions
+from app.bot.formatting import compact_values, search_card, search_edit_card, source_list
+from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
-from app.bot.keyboards.menu import cancel_menu, main_menu
+from app.bot.keyboards.menu import main_menu
 from app.bot.states.edit_search import EditSearch
 from app.db.repositories.searches import (
     delete_user_search,
@@ -26,29 +27,87 @@ from app.utils.text import split_terms
 router = Router()
 
 
-async def _send_updated_search(
+async def _delete_user_input(message: Message) -> None:
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
+
+
+async def _edit_saved_card(
     message: Message,
+    state_data: dict[str, object],
     session: AsyncSession,
     *,
     user_id: int,
     search_id: int,
-    title: str,
 ) -> None:
     search = await get_user_search(session, user_id=user_id, search_id=search_id)
     if not search:
         await message.answer("Поиск не найден.", reply_markup=main_menu())
         return
 
+    editor_chat_id = state_data.get("editor_chat_id")
+    editor_message_id = state_data.get("editor_message_id")
+    if isinstance(editor_chat_id, int) and isinstance(editor_message_id, int):
+        try:
+            await message.bot.edit_message_text(
+                chat_id=editor_chat_id,
+                message_id=editor_message_id,
+                text=search_card(search),
+                reply_markup=search_actions(search.id, search.is_active),
+                disable_web_page_preview=True,
+            )
+            return
+        except TelegramBadRequest:
+            pass
+
     await message.answer(
-        f"<b>{title}</b>\n\n{search_card(search)}",
+        search_card(search),
         reply_markup=search_actions(search.id, search.is_active),
         disable_web_page_preview=True,
     )
 
 
+async def _edit_prompt_message(
+    message: Message,
+    state_data: dict[str, object],
+    *,
+    text: str,
+    search_id: int,
+) -> None:
+    editor_chat_id = state_data.get("editor_chat_id")
+    editor_message_id = state_data.get("editor_message_id")
+    if isinstance(editor_chat_id, int) and isinstance(editor_message_id, int):
+        try:
+            await message.bot.edit_message_text(
+                chat_id=editor_chat_id,
+                message_id=editor_message_id,
+                text=text,
+                reply_markup=edit_cancel(search_id),
+                disable_web_page_preview=True,
+            )
+            return
+        except TelegramBadRequest:
+            pass
+
+    await message.answer(text, reply_markup=edit_cancel(search_id), disable_web_page_preview=True)
+
+
 @router.message(StateFilter(EditSearch), F.text == CANCEL)
-async def cancel_edit_search(message: Message, state: FSMContext) -> None:
+async def cancel_edit_search(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+) -> None:
+    data = await state.get_data()
     await state.clear()
+    await _delete_user_input(message)
+    search_id = data.get("search_id")
+    if isinstance(search_id, int) and message.from_user:
+        user = await get_or_create_user(session, message.from_user)
+        await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
+        return
     await message.answer("<b>Редактирование отменено.</b>", reply_markup=main_menu())
 
 
@@ -57,16 +116,23 @@ async def save_search_title(message: Message, state: FSMContext, session: AsyncS
     if not message.from_user:
         return
 
-    title = (message.text or "").strip()
-    if len(title) < 2:
-        await message.answer(
-            "Название слишком короткое. Напишите минимум 2 символа.",
-            reply_markup=cancel_menu(),
-        )
-        return
-
     data = await state.get_data()
     search_id = data.get("search_id")
+    title = (message.text or "").strip()
+    if len(title) < 2:
+        await _delete_user_input(message)
+        if isinstance(search_id, int):
+            await _edit_prompt_message(
+                message,
+                data,
+                text=(
+                    "<b>Новое название поиска</b>\n\n"
+                    "Название слишком короткое. Напишите минимум 2 символа."
+                ),
+                search_id=search_id,
+            )
+        return
+
     user = await get_or_create_user(session, message.from_user)
     if not isinstance(search_id, int):
         await state.clear()
@@ -75,13 +141,8 @@ async def save_search_title(message: Message, state: FSMContext, session: AsyncS
 
     await update_search_title(session, user_id=user.id, search_id=search_id, title=title)
     await state.clear()
-    await _send_updated_search(
-        message,
-        session,
-        user_id=user.id,
-        search_id=search_id,
-        title="Название обновлено",
-    )
+    await _delete_user_input(message)
+    await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
 
 
 @router.message(EditSearch.keywords)
@@ -89,13 +150,23 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
     if not message.from_user:
         return
 
-    keywords = split_terms(message.text or "")
-    if not keywords:
-        await message.answer("Нужно хотя бы одно ключевое слово.", reply_markup=cancel_menu())
-        return
-
     data = await state.get_data()
     search_id = data.get("search_id")
+    keywords = split_terms(message.text or "")
+    if not keywords:
+        await _delete_user_input(message)
+        if isinstance(search_id, int):
+            await _edit_prompt_message(
+                message,
+                data,
+                text=(
+                    "<b>Новые ключевые слова</b>\n\n"
+                    "Нужно хотя бы одно ключевое слово. Отправьте список заново."
+                ),
+                search_id=search_id,
+            )
+        return
+
     user = await get_or_create_user(session, message.from_user)
     if not isinstance(search_id, int):
         await state.clear()
@@ -104,13 +175,8 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
 
     await replace_search_keywords(session, user_id=user.id, search_id=search_id, keywords=keywords)
     await state.clear()
-    await _send_updated_search(
-        message,
-        session,
-        user_id=user.id,
-        search_id=search_id,
-        title="Ключевые слова обновлены",
-    )
+    await _delete_user_input(message)
+    await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
 
 
 @router.message(EditSearch.minus_words)
@@ -118,11 +184,11 @@ async def save_search_minus_words(message: Message, state: FSMContext, session: 
     if not message.from_user:
         return
 
+    data = await state.get_data()
+    search_id = data.get("search_id")
     text = (message.text or "").strip()
     minus_words = [] if text.casefold() in {"-", "нет", "очистить"} else split_terms(text)
 
-    data = await state.get_data()
-    search_id = data.get("search_id")
     user = await get_or_create_user(session, message.from_user)
     if not isinstance(search_id, int):
         await state.clear()
@@ -136,13 +202,8 @@ async def save_search_minus_words(message: Message, state: FSMContext, session: 
         minus_words=minus_words,
     )
     await state.clear()
-    await _send_updated_search(
-        message,
-        session,
-        user_id=user.id,
-        search_id=search_id,
-        title="Минус-слова обновлены",
-    )
+    await _delete_user_input(message)
+    await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
 
 
 @router.message(EditSearch.sources)
@@ -150,17 +211,24 @@ async def save_search_sources(message: Message, state: FSMContext, session: Asyn
     if not message.from_user:
         return
 
-    sources = split_sources(message.text or "")
-    if not sources:
-        await message.answer(
-            "Не вижу источников. Отправьте @username или ссылки t.me, каждую с новой строки.",
-            reply_markup=cancel_menu(),
-            disable_web_page_preview=True,
-        )
-        return
-
     data = await state.get_data()
     search_id = data.get("search_id")
+    sources = split_sources(message.text or "")
+    if not sources:
+        await _delete_user_input(message)
+        if isinstance(search_id, int):
+            await _edit_prompt_message(
+                message,
+                data,
+                text=(
+                    "<b>Новые источники</b>\n\n"
+                    "Не вижу источников. Отправьте @username или ссылки t.me, "
+                    "каждую с новой строки."
+                ),
+                search_id=search_id,
+            )
+        return
+
     user = await get_or_create_user(session, message.from_user)
     if not isinstance(search_id, int):
         await state.clear()
@@ -169,13 +237,8 @@ async def save_search_sources(message: Message, state: FSMContext, session: Asyn
 
     await replace_search_sources(session, user_id=user.id, search_id=search_id, sources=sources)
     await state.clear()
-    await _send_updated_search(
-        message,
-        session,
-        user_id=user.id,
-        search_id=search_id,
-        title="Источники обновлены",
-    )
+    await _delete_user_input(message)
+    await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
 
 
 @router.message(F.text == MY_SEARCHES)
@@ -250,64 +313,122 @@ async def handle_search_action(
 
     if action == "sources":
         if callback.message:
-            await callback.message.answer(source_list(search), reply_markup=main_menu())
+            await callback.message.edit_text(
+                source_list(search),
+                reply_markup=search_back(search.id),
+                disable_web_page_preview=True,
+            )
         await callback.answer()
+        return
+
+    if action == "edit":
+        if callback.message:
+            await callback.message.edit_text(
+                search_edit_card(search),
+                reply_markup=search_edit_actions(search.id),
+                disable_web_page_preview=True,
+            )
+        await callback.answer()
+        return
+
+    if action == "back":
+        await state.clear()
+        if callback.message:
+            await callback.message.edit_text(
+                search_card(search),
+                reply_markup=search_actions(search.id, search.is_active),
+                disable_web_page_preview=True,
+            )
+        await callback.answer()
+        return
+
+    if action == "cancel":
+        await state.clear()
+        if callback.message:
+            await callback.message.edit_text(
+                search_card(search),
+                reply_markup=search_actions(search.id, search.is_active),
+                disable_web_page_preview=True,
+            )
+        await callback.answer("Редактирование отменено.")
         return
 
     if action == "title":
         await state.set_state(EditSearch.title)
-        await state.update_data(search_id=search.id)
         if callback.message:
-            await callback.message.answer(
-                "<b>Новое название поиска</b>\n\n"
-                "Отправьте короткое название, например:\n"
-                "<blockquote>Комплектовщики Москва</blockquote>",
-                reply_markup=cancel_menu(),
+            await state.update_data(
+                search_id=search.id,
+                editor_chat_id=callback.message.chat.id,
+                editor_message_id=callback.message.message_id,
+            )
+            await callback.message.edit_text(
+                f"{search_card(search)}\n\n"
+                "<b>Новое название поиска</b>\n"
+                "<blockquote>Например: Комплектовщики Москва</blockquote>",
+                reply_markup=edit_cancel(search.id),
+                disable_web_page_preview=True,
             )
         await callback.answer()
         return
 
     if action == "keywords":
         await state.set_state(EditSearch.keywords)
-        await state.update_data(search_id=search.id)
         current = [item.value for item in search.keywords]
         if callback.message:
-            await callback.message.answer(
-                "<b>Новые ключевые слова</b>\n\n"
+            await state.update_data(
+                search_id=search.id,
+                editor_chat_id=callback.message.chat.id,
+                editor_message_id=callback.message.message_id,
+            )
+            await callback.message.edit_text(
+                f"{search_card(search)}\n\n"
+                "<b>Новые ключевые слова</b>\n"
                 "Отправьте полный новый список. "
                 "Каждое слово или фразу лучше писать с новой строки.\n\n"
                 f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
-                reply_markup=cancel_menu(),
+                reply_markup=edit_cancel(search.id),
+                disable_web_page_preview=True,
             )
         await callback.answer()
         return
 
     if action == "minus":
         await state.set_state(EditSearch.minus_words)
-        await state.update_data(search_id=search.id)
         current = [item.value for item in search.minus_words]
         if callback.message:
-            await callback.message.answer(
-                "<b>Новые минус-слова</b>\n\n"
+            await state.update_data(
+                search_id=search.id,
+                editor_chat_id=callback.message.chat.id,
+                editor_message_id=callback.message.message_id,
+            )
+            await callback.message.edit_text(
+                f"{search_card(search)}\n\n"
+                "<b>Новые минус-слова</b>\n"
                 "Отправьте полный новый список. "
                 "Чтобы очистить минус-слова, отправьте один символ: <code>-</code>.\n\n"
                 f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
-                reply_markup=cancel_menu(),
+                reply_markup=edit_cancel(search.id),
+                disable_web_page_preview=True,
             )
         await callback.answer()
         return
 
     if action == "replace_sources":
         await state.set_state(EditSearch.sources)
-        await state.update_data(search_id=search.id)
         current = [link.source.input_ref for link in search.sources]
         if callback.message:
-            await callback.message.answer(
-                "<b>Новые источники</b>\n\n"
+            await state.update_data(
+                search_id=search.id,
+                editor_chat_id=callback.message.chat.id,
+                editor_message_id=callback.message.message_id,
+            )
+            await callback.message.edit_text(
+                f"{search_card(search)}\n\n"
+                "<b>Новые источники</b>\n"
                 "Отправьте полный новый список каналов или групп, "
                 "каждый источник с новой строки.\n\n"
                 f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
-                reply_markup=cancel_menu(),
+                reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
         await callback.answer()

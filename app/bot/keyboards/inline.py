@@ -14,13 +14,36 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="Источники", callback_data=f"search:sources:{search_id}"),
             ],
             [
+                InlineKeyboardButton(text="Редактировать", callback_data=f"search:edit:{search_id}"),
+                InlineKeyboardButton(text="Удалить", callback_data=f"search:delete:{search_id}"),
+            ],
+        ],
+    )
+
+
+def search_edit_actions(search_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
                 InlineKeyboardButton(text="Название", callback_data=f"search:title:{search_id}"),
                 InlineKeyboardButton(text="Ключевые слова", callback_data=f"search:keywords:{search_id}"),
             ],
             [
                 InlineKeyboardButton(text="Минус-слова", callback_data=f"search:minus:{search_id}"),
-                InlineKeyboardButton(text="Заменить источники", callback_data=f"search:replace_sources:{search_id}"),
+                InlineKeyboardButton(text="Источники", callback_data=f"search:replace_sources:{search_id}"),
             ],
-            [InlineKeyboardButton(text="Удалить поиск", callback_data=f"search:delete:{search_id}")],
+            [InlineKeyboardButton(text="Назад", callback_data=f"search:back:{search_id}")],
         ],
+    )
+
+
+def search_back(search_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data=f"search:back:{search_id}")]],
+    )
+
+
+def edit_cancel(search_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="Отменить", callback_data=f"search:cancel:{search_id}")]],
     )

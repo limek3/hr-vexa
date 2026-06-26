@@ -51,6 +51,22 @@ def search_card(search: Search, *, index: int | None = None) -> str:
     )
 
 
+def search_edit_card(search: Search) -> str:
+    keywords = [item.value for item in search.keywords]
+    minus_words = [item.value for item in search.minus_words]
+    sources = [link.source.input_ref for link in search.sources]
+
+    return (
+        f"{search_card(search)}\n\n"
+        "<b>Ключевые слова</b>\n"
+        f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n"
+        "<b>Минус-слова</b>\n"
+        f"<blockquote>{compact_values(minus_words, limit=8)}</blockquote>\n"
+        "<b>Источники</b>\n"
+        f"<blockquote>{compact_values(sources, limit=8)}</blockquote>"
+    )
+
+
 def source_list(search: Search) -> str:
     if not search.sources:
         return "Источники не добавлены."
