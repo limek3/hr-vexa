@@ -10,6 +10,7 @@ from app.db.models import Message, Source, User
 from app.db.repositories.messages import create_match_once, increment_daily_stats, save_message_if_new
 from app.db.repositories.searches import list_active_searches_for_source
 from app.db.repositories.sources import get_source_by_telegram_id
+from app.db.repositories.user_settings import notifications_paused_for_user
 from app.services.filtering import is_match
 from app.services.notifications import send_candidate_notification
 
@@ -79,6 +80,9 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
         user = await session.scalar(select(User).where(User.id == search.user_id))
         message = await session.get(Message, saved_message.id)
         if user and message:
+            if await notifications_paused_for_user(session, user_id=user.id):
+                logger.info("Notification skipped by quiet hours: search_id=%s match_id=%s", search.id, match.id)
+                continue
             await send_candidate_notification(
                 bot,
                 user=user,

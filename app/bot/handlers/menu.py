@@ -1,21 +1,29 @@
-import logging
-
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.types import CallbackQuery
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.keyboards.labels import EXPORT_CONTACTS, HELP
+from app.bot.keyboards.inline import quiet_hours_actions
+from app.bot.keyboards.labels import HELP, QUIET_HOURS
 from app.bot.keyboards.menu import main_menu
 from app.bot.messages import HELP_TEXT
+from app.db.models import UserSettings
+from app.db.repositories.user_settings import get_or_create_user_settings, toggle_quiet_hours
 from app.db.repositories.users import get_or_create_user
-from app.services.google_sheets import (
-    GoogleSheetsNotConfiguredError,
-    export_contacts_to_google_sheets,
-)
 
 router = Router()
-logger = logging.getLogger(__name__)
+
+
+def _quiet_hours_text(settings: UserSettings) -> str:
+    status = "включены" if settings.quiet_hours_enabled else "выключены"
+    return (
+        "<b>Тихие часы</b>\n\n"
+        f"Статус: <b>{status}</b>\n"
+        "Время: <b>00:00–07:00 по МСК</b>\n\n"
+        "<blockquote>Когда тихие часы включены, HR Vexa продолжает находить совпадения, "
+        "но не присылает уведомления ночью.</blockquote>"
+    )
 
 
 @router.message(Command("help"))
@@ -24,42 +32,32 @@ async def help_message(message: Message) -> None:
     await message.answer(HELP_TEXT, reply_markup=main_menu())
 
 
-@router.message(lambda message: message.text == EXPORT_CONTACTS)
-async def export_contacts(message: Message, session: AsyncSession) -> None:
+@router.message(lambda message: message.text == QUIET_HOURS)
+async def quiet_hours(message: Message, session: AsyncSession) -> None:
     if not message.from_user:
         return
 
     user = await get_or_create_user(session, message.from_user)
-    try:
-        count, url = await export_contacts_to_google_sheets(session, user_id=user.id)
-    except GoogleSheetsNotConfiguredError:
-        await message.answer(
-            "<b>Google Sheets не подключен.</b>\n\n"
-            "Добавьте в Railway Variables:\n"
-            "<blockquote>GOOGLE_SERVICE_ACCOUNT_JSON\nGOOGLE_SHEET_ID</blockquote>\n"
-            "После этого кнопка будет выгружать найденные контакты в таблицу.",
-            reply_markup=main_menu(),
-            disable_web_page_preview=True,
-        )
-        return
-    except Exception:
-        logger.exception("Google Sheets export failed")
-        await message.answer(
-            "<b>Экспорт не выполнен.</b>\n\n"
-            "Проверьте, что Google Sheet расшарен на email service account "
-            "и что переменные GOOGLE_SERVICE_ACCOUNT_JSON / GOOGLE_SHEET_ID заполнены верно.",
-            reply_markup=main_menu(),
-            disable_web_page_preview=True,
-        )
+    settings = await get_or_create_user_settings(session, user_id=user.id)
+    await message.answer(
+        _quiet_hours_text(settings),
+        reply_markup=quiet_hours_actions(settings.quiet_hours_enabled),
+    )
+
+
+@router.callback_query(F.data == "settings:quiet:toggle")
+async def toggle_quiet_hours_setting(callback: CallbackQuery, session: AsyncSession) -> None:
+    if not callback.from_user:
         return
 
-    await message.answer(
-        "<b>Экспорт готов.</b>\n\n"
-        f"Строк выгружено: <b>{count}</b>\n"
-        f"<blockquote>{url}</blockquote>",
-        reply_markup=main_menu(),
-        disable_web_page_preview=True,
-    )
+    user = await get_or_create_user(session, callback.from_user)
+    settings = await toggle_quiet_hours(session, user_id=user.id)
+    if callback.message:
+        await callback.message.edit_text(
+            _quiet_hours_text(settings),
+            reply_markup=quiet_hours_actions(settings.quiet_hours_enabled),
+        )
+    await callback.answer("Настройка обновлена.")
 
 
 @router.message()

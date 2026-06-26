@@ -40,6 +40,20 @@ class User(Base, TimestampMixin):
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     searches: Mapped[list["Search"]] = relationship(back_populates="user")
+    settings: Mapped["UserSettings | None"] = relationship(back_populates="user")
+
+
+class UserSettings(Base, TimestampMixin):
+    __tablename__ = "user_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    quiet_hours_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    quiet_hours_start: Mapped[str] = mapped_column(String(5), default="00:00")
+    quiet_hours_end: Mapped[str] = mapped_column(String(5), default="07:00")
+    timezone: Mapped[str] = mapped_column(String(64), default="Europe/Moscow")
+
+    user: Mapped[User] = relationship(back_populates="settings")
 
 
 class Search(Base, TimestampMixin):

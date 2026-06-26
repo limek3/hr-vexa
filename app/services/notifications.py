@@ -6,7 +6,6 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.formatting import html
 from app.db.models import Match, Message, Search, Source, User
-from app.services.schedule import notifications_paused_now
 
 
 PHONE_RE = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
@@ -73,9 +72,6 @@ async def send_candidate_notification(
     sender_phone: str | None = None,
     sender_name: str | None = None,
 ) -> None:
-    if notifications_paused_now():
-        return
-
     text = _short_text(message.text)
     username = sender_username or _first_username(text)
     phone = _clean_phone(sender_phone) or _first_phone(text)

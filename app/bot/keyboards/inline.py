@@ -47,3 +47,12 @@ def edit_cancel(search_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="Отменить", callback_data=f"search:cancel:{search_id}")]],
     )
+
+
+def quiet_hours_actions(enabled: bool) -> InlineKeyboardMarkup:
+    text = "Выключить" if enabled else "Включить"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text, callback_data="settings:quiet:toggle")],
+        ],
+    )
