@@ -82,9 +82,9 @@ async def show_reply_draft(callback: CallbackQuery, session: AsyncSession) -> No
 
     if callback.message:
         await callback.message.answer(
-            "<b>Сообщение для кандидата</b>\n\n"
+            "<b>Сообщение для ответа</b>\n\n"
             f"<blockquote>{html(draft)}</blockquote>\n\n"
-            "Скопируйте текст и отправьте его кандидату.",
+            "Скопируйте текст и отправьте его адресату.",
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )

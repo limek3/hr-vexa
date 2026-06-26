@@ -35,7 +35,7 @@ async def create_search_start(message: Message, state: FSMContext) -> None:
         "<b>Новый поиск</b>\n"
         "Шаг 1 из 4: название\n\n"
         "Напишите короткое название, чтобы потом легко найти поиск в списке.\n\n"
-        "<blockquote>Вахта Москва\nКурьеры СПб\nКомплектовщики Казань</blockquote>",
+        "<blockquote>Аренда Москва\nЗаявки на ремонт\nОтзывы о бренде\nТендеры поставки</blockquote>",
         reply_markup=cancel_menu(),
     )
 
@@ -45,7 +45,7 @@ async def set_title(message: Message, state: FSMContext) -> None:
     title = (message.text or "").strip()
     if len(title) < 2:
         await message.answer(
-            "Слишком короткое название. Напишите, например: <code>Курьеры СПб</code>",
+            "Слишком короткое название. Напишите, например: <code>Аренда Москва</code>",
             reply_markup=cancel_menu(),
         )
         return
@@ -54,9 +54,9 @@ async def set_title(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.keywords)
     await message.answer(
         "<b>Шаг 2 из 4: ключевые слова</b>\n\n"
-        "Пишите слова или фразы, которые должны быть в сообщении кандидата.\n"
+        "Пишите слова или фразы, которые должны быть в нужном сообщении.\n"
         "Лучше каждую фразу с новой строки.\n\n"
-        "<blockquote>вахта\nкомплектовщик\nразнорабочий</blockquote>",
+        "<blockquote>сдам квартиру\nнужен ремонт\nищу поставщика\nотзыв vexa\nкурьер</blockquote>",
         reply_markup=cancel_menu(),
     )
 
@@ -77,7 +77,7 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     await message.answer(
         "<b>Шаг 3 из 4: минус-слова</b>\n\n"
         "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
-        "<blockquote>обучение\nфраншиза\nинвестиции</blockquote>\n\n"
+        "<blockquote>реклама\nфраншиза\nобучение\nнеактуально</blockquote>\n\n"
         "Если минус-слова не нужны, нажмите <b>Пропустить</b>.",
         reply_markup=skip_menu(),
     )
@@ -91,8 +91,8 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await message.answer(
         "<b>Шаг 4 из 4: источники</b>\n\n"
         "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
-        "<blockquote>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</blockquote>\n\n"
-        "HR Vexa проверит доступ и начнет слушать новые посты, сообщения и комментарии.",
+        "<blockquote>@vexa_group\nhttps://t.me/vexa_group\nhttps://t.me/+invite</blockquote>\n\n"
+        "Vexa проверит доступ и начнет слушать новые посты, сообщения и комментарии.",
         reply_markup=cancel_menu(),
         disable_web_page_preview=True,
     )

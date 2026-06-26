@@ -42,7 +42,7 @@ def _short_text(text: str, *, limit: int = 900) -> str:
 def _reply_draft(search_title: str) -> str:
     return (
         f"Доброго времени суток! Увидел(а) ваше сообщение по теме «{search_title}». "
-        "Подскажите, пожалуйста, предложение еще актуально?"
+        "Подскажите, пожалуйста, это еще актуально?"
     )
 
 
@@ -90,7 +90,7 @@ async def send_candidate_notification(
             f"<b>Telegram:</b> {telegram_line}\n"
             f"<b>Телефон:</b> {phone_line}"
             f"{name_line}\n\n"
-            "<b>Сообщение кандидата</b>\n"
+            "<b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
             "<b>Заготовка для ЛС</b>\n"
             f"<blockquote>{html(draft)}</blockquote>"

@@ -1,10 +1,10 @@
-# Deploy HR Vexa to Railway
+# Deploy Vexa to Railway
 
 ## 1. Push Code to GitHub
 
 ```bash
 git add .
-git commit -m "Update HR Vexa"
+git commit -m "Update Vexa"
 git push
 ```
 

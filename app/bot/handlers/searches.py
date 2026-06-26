@@ -376,7 +376,7 @@ async def handle_search_action(
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
                 "<b>Новое название поиска</b>\n"
-                "<blockquote>Например: Комплектовщики Москва</blockquote>",
+                "<blockquote>Например: Аренда Москва</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )

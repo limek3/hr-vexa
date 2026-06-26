@@ -1,8 +1,8 @@
-# HR Vexa
+# Vexa
 
-Telegram-monitoring bot for recruiters.
+Telegram-monitoring bot for keyword-based tracking across channels, groups, posts, and comments.
 
-HR Vexa lets a recruiter create keyword searches, attach Telegram sources, and receive new matching messages directly in Telegram.
+Vexa lets a user create keyword searches, attach Telegram sources, and receive new matching messages directly in Telegram.
 
 ## Current Architecture
 
