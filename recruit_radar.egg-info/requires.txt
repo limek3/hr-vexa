@@ -1,0 +1,14 @@
+aiogram<4.0,>=3.10
+aiosqlite<1.0,>=0.20
+alembic<2.0,>=1.13
+asyncpg<1.0,>=0.29
+fastapi<1.0,>=0.111
+psycopg[binary]<4.0,>=3.2
+pydantic-settings<3.0,>=2.4
+python-dotenv<2.0,>=1.0
+qrcode<9.0,>=8.0
+sqlalchemy[asyncio]<3.0,>=2.0
+telethon<2.0,>=1.36
+
+[dev]
+ruff<1.0,>=0.5

@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.session
+*.session-journal
+sessions/
+.pytest_cache/
+.ruff_cache/
+.vercel/
+postgres_data/
+redis_data/

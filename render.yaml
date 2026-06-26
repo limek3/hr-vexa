@@ -1,0 +1,40 @@
+services:
+  - type: worker
+    name: hrvexa-bot
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: python -m app.bot.main
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: BOT_TOKEN
+        sync: false
+      - key: BOT_PROXY_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+
+  - type: worker
+    name: hrvexa-monitor
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: python -m app.monitor.main
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: TELEGRAM_SESSION_STRING
+        sync: false
