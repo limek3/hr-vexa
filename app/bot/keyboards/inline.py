@@ -14,7 +14,7 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="Источники", callback_data=f"search:sources:{search_id}"),
             ],
             [
-                InlineKeyboardButton(text="Редактировать", callback_data=f"search:edit:{search_id}"),
+                InlineKeyboardButton(text="Настроить", callback_data=f"search:edit:{search_id}"),
                 InlineKeyboardButton(text="Удалить", callback_data=f"search:delete:{search_id}"),
             ],
         ],

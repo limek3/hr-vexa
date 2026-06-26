@@ -6,13 +6,11 @@ from app.bot.keyboards.labels import CANCEL, HELP, MY_SEARCHES, NEW_SEARCH, QUIE
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=NEW_SEARCH)],
-            [KeyboardButton(text=MY_SEARCHES)],
-            [KeyboardButton(text=QUIET_HOURS)],
-            [KeyboardButton(text=HELP)],
+            [KeyboardButton(text=NEW_SEARCH), KeyboardButton(text=MY_SEARCHES)],
+            [KeyboardButton(text=QUIET_HOURS), KeyboardButton(text=HELP)],
         ],
         resize_keyboard=True,
-        input_field_placeholder="Выберите действие",
+        input_field_placeholder="Vexa: выберите действие",
     )
 
 

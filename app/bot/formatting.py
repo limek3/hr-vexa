@@ -36,7 +36,7 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 def search_card(search: Search, *, index: int | None = None) -> str:
     title = f"{index}. {html(search.title)}" if index is not None else html(search.title)
-    status = "включен" if search.is_active else "выключен"
+    status = "включен" if search.is_active else "на паузе"
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     active_sources = [link for link in search.sources if link.is_active]
@@ -45,8 +45,8 @@ def search_card(search: Search, *, index: int | None = None) -> str:
 
     return (
         f"<b>{title}</b>\n"
-        f"{status} · {len(keywords)} {keyword_word} · {len(active_sources)} {source_word}"
-        f" · минус: {len(minus_words)}\n"
+        f"<b>{status}</b> · {len(keywords)} {keyword_word} · {len(active_sources)} {source_word} "
+        f"· минус: {len(minus_words)}\n"
         f"<blockquote>{compact_inline(keywords)}</blockquote>"
     )
 
@@ -55,9 +55,11 @@ def search_edit_card(search: Search) -> str:
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     sources = [link.source.input_ref for link in search.sources]
+    status = "включен" if search.is_active else "на паузе"
 
     return (
-        f"{search_card(search)}\n\n"
+        f"<b>{html(search.title)}</b>\n"
+        f"Статус: <b>{status}</b>\n\n"
         "<b>Ключевые слова</b>\n"
         f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n"
         "<b>Минус-слова</b>\n"

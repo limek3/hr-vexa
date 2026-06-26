@@ -64,6 +64,6 @@ async def toggle_quiet_hours_setting(callback: CallbackQuery, session: AsyncSess
 async def fallback(message: Message) -> None:
     await message.answer(
         "Я не распознал команду.\n\n"
-        "Выберите действие в меню или нажмите <b>Помощь</b>.",
+        "Выберите действие в меню или отправьте /help.",
         reply_markup=main_menu(),
     )
