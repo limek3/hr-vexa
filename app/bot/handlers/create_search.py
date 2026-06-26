@@ -10,6 +10,7 @@ from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
 from app.bot.states.create_search import CreateSearch
 from app.db.repositories.searches import create_search
 from app.db.repositories.users import get_or_create_user
+from app.services.policy import find_forbidden_terms, forbidden_terms_message
 from app.utils.links import split_sources
 from app.utils.text import split_terms
 
@@ -66,6 +67,10 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     if not keywords:
         await message.answer("Нужно хотя бы одно ключевое слово.", reply_markup=cancel_menu())
         return
+    forbidden = find_forbidden_terms(keywords)
+    if forbidden:
+        await message.answer(forbidden_terms_message(forbidden), reply_markup=cancel_menu())
+        return
 
     await state.update_data(keywords=keywords)
     await state.set_state(CreateSearch.minus_words)
@@ -85,9 +90,9 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.sources)
     await message.answer(
         "<b>Шаг 4 из 4: источники</b>\n\n"
-        "Отправьте каналы или группы, каждый источник с новой строки.\n\n"
+        "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
         "<blockquote>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</blockquote>\n\n"
-        "HR Vexa проверит доступ и начнет слушать новые сообщения.",
+        "HR Vexa проверит доступ и начнет слушать новые посты, сообщения и комментарии.",
         reply_markup=cancel_menu(),
         disable_web_page_preview=True,
     )

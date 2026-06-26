@@ -7,7 +7,11 @@ from telethon import TelegramClient, events
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.init import init_models
-from app.db.repositories.sources import list_sources, mark_source_access
+from app.db.repositories.sources import (
+    list_sources,
+    mark_source_access,
+    upsert_linked_discussion_source,
+)
 from app.db.session import SessionLocal
 from app.monitor.client import build_telegram_client
 from app.monitor.handlers import handle_new_message
@@ -20,7 +24,9 @@ async def refresh_sources(client: TelegramClient) -> None:
     async with SessionLocal() as session:
         sources = await list_sources(session, statuses={"pending", "unavailable", "not_found"})
         for source in sources:
-            telegram_id, title, source_type, access_status = await resolve_and_join_source(client, source)
+            telegram_id, title, source_type, access_status, linked_discussion = (
+                await resolve_and_join_source(client, source)
+            )
             await mark_source_access(
                 session,
                 source_id=source.id,
@@ -29,6 +35,15 @@ async def refresh_sources(client: TelegramClient) -> None:
                 source_type=source_type,
                 access_status=access_status,
             )
+            if linked_discussion:
+                linked_id, linked_title, linked_type = linked_discussion
+                await upsert_linked_discussion_source(
+                    session,
+                    parent_source_id=source.id,
+                    telegram_id=linked_id,
+                    title=linked_title,
+                    source_type=linked_type,
+                )
         await session.commit()
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DailyStats, Match, Message
+from app.db.models import DailyStats, Match, Message, Search, Source
 
 
 async def save_message_if_new(
@@ -91,3 +91,21 @@ async def hide_match(session: AsyncSession, *, match_id: int, user_id: int) -> b
         .returning(Match.id),
     )
     return result.scalar_one_or_none() is not None
+
+
+async def list_matches_for_export(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    limit: int = 500,
+) -> list[tuple[Match, Search, Source, Message]]:
+    result = await session.execute(
+        select(Match, Search, Source, Message)
+        .join(Search, Search.id == Match.search_id)
+        .join(Source, Source.id == Match.source_id)
+        .join(Message, Message.id == Match.message_id)
+        .where(Match.user_id == user_id)
+        .order_by(Match.created_at.desc())
+        .limit(limit),
+    )
+    return list(result.all())

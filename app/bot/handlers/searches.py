@@ -21,6 +21,7 @@ from app.db.repositories.searches import (
     update_search_title,
 )
 from app.db.repositories.users import get_or_create_user
+from app.services.policy import find_forbidden_terms, forbidden_terms_message
 from app.utils.links import split_sources
 from app.utils.text import split_terms
 
@@ -163,6 +164,17 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
                     "<b>Новые ключевые слова</b>\n\n"
                     "Нужно хотя бы одно ключевое слово. Отправьте список заново."
                 ),
+                search_id=search_id,
+            )
+        return
+    forbidden = find_forbidden_terms(keywords)
+    if forbidden:
+        await _delete_user_input(message)
+        if isinstance(search_id, int):
+            await _edit_prompt_message(
+                message,
+                data,
+                text=forbidden_terms_message(forbidden),
                 search_id=search_id,
             )
         return

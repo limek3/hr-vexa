@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     telegram_api_hash: str = Field(default="", alias="TELEGRAM_API_HASH")
     telegram_session_string: str = Field(default="", alias="TELEGRAM_SESSION_STRING")
 
+    quiet_hours_enabled: bool = Field(default=False, alias="QUIET_HOURS_ENABLED")
+    quiet_hours_start: str = Field(default="22:00", alias="QUIET_HOURS_START")
+    quiet_hours_end: str = Field(default="09:00", alias="QUIET_HOURS_END")
+
+    google_service_account_json: str = Field(default="", alias="GOOGLE_SERVICE_ACCOUNT_JSON")
+    google_sheet_id: str = Field(default="", alias="GOOGLE_SHEET_ID")
+
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 

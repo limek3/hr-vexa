@@ -2,7 +2,7 @@ import logging
 
 from telethon import TelegramClient
 from telethon.errors import RPCError, UserAlreadyParticipantError
-from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.tl.functions.channels import GetFullChannelRequest, JoinChannelRequest
 from telethon.tl.functions.messages import ImportChatInviteRequest
 
 from app.db.models import Source
@@ -26,7 +26,35 @@ def _source_type(entity: object) -> str:
     return "chat"
 
 
-async def resolve_and_join_source(client: TelegramClient, source: Source) -> tuple[int | None, str, str, str]:
+async def _linked_discussion(
+    client: TelegramClient,
+    entity: object,
+    source_ref: str,
+) -> tuple[int, str, str] | None:
+    if not getattr(entity, "broadcast", False):
+        return None
+    try:
+        full = await client(GetFullChannelRequest(entity))
+        linked_chat_id = getattr(full.full_chat, "linked_chat_id", None)
+        if not linked_chat_id:
+            return None
+        linked_entity = await client.get_entity(linked_chat_id)
+        linked_id = getattr(linked_entity, "id", None)
+        if linked_id is None:
+            return None
+        title = getattr(linked_entity, "title", None) or f"Discussion {linked_id}"
+        return linked_id, title, _source_type(linked_entity)
+    except RPCError as exc:
+        logger.info("Could not resolve linked discussion for %s: %s", source_ref, exc)
+    except ValueError as exc:
+        logger.info("Linked discussion not found for %s: %s", source_ref, exc)
+    return None
+
+
+async def resolve_and_join_source(
+    client: TelegramClient,
+    source: Source,
+) -> tuple[int | None, str, str, str, tuple[int, str, str] | None]:
     try:
         invite_hash = _invite_hash(source.input_ref)
         if invite_hash:
@@ -47,10 +75,11 @@ async def resolve_and_join_source(client: TelegramClient, source: Source) -> tup
 
         telegram_id = getattr(entity, "id", None)
         title = getattr(entity, "title", None) or source.input_ref
-        return telegram_id, title, _source_type(entity), "available"
+        linked_discussion = await _linked_discussion(client, entity, source.input_ref)
+        return telegram_id, title, _source_type(entity), "available", linked_discussion
     except RPCError as exc:
         logger.warning("Source unavailable %s: %s", source.input_ref, exc)
-        return source.telegram_id, source.title or source.input_ref, source.type, "unavailable"
+        return source.telegram_id, source.title or source.input_ref, source.type, "unavailable", None
     except ValueError as exc:
         logger.warning("Source not found %s: %s", source.input_ref, exc)
-        return source.telegram_id, source.title or source.input_ref, source.type, "not_found"
+        return source.telegram_id, source.title or source.input_ref, source.type, "not_found", None
