@@ -2,10 +2,12 @@ import asyncio
 import getpass
 
 import qrcode
+from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
+from telethon.network.connection.tcpabridged import ConnectionTcpAbridged
+from telethon.sessions import StringSession
 
 from app.core.config import get_settings
-from app.monitor.client import build_telegram_client
 
 
 async def main() -> None:
@@ -13,7 +15,16 @@ async def main() -> None:
     if not settings.telegram_api_id or not settings.telegram_api_hash:
         raise RuntimeError("TELEGRAM_API_ID and TELEGRAM_API_HASH are required")
 
-    client = build_telegram_client()
+    client = TelegramClient(
+        StringSession(),
+        settings.telegram_api_id,
+        settings.telegram_api_hash,
+        connection=ConnectionTcpAbridged,
+        connection_retries=5,
+        retry_delay=3,
+        timeout=20,
+        auto_reconnect=True,
+    )
     await client.connect()
 
     qr_login = await client.qr_login()

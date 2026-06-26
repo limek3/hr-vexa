@@ -25,21 +25,29 @@ def compact_values(values: list[str], *, limit: int = 5) -> str:
     return "\n".join(f"- {html(value)}" for value in visible) + suffix
 
 
+def compact_inline(values: list[str], *, limit: int = 4) -> str:
+    if not values:
+        return "ключевые слова не заданы"
+    visible = ", ".join(html(value) for value in values[:limit])
+    if len(values) > limit:
+        visible = f"{visible}, +{len(values) - limit}"
+    return visible
+
+
 def search_card(search: Search, *, index: int | None = None) -> str:
     title = f"{index}. {html(search.title)}" if index is not None else html(search.title)
-    status = "включен" if search.is_active else "выключен"
+    status = "🟢 включен" if search.is_active else "⏸ выключен"
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     active_sources = [link for link in search.sources if link.is_active]
+    keyword_word = "ключ" if len(keywords) == 1 else "ключей"
+    source_word = "источник" if len(active_sources) == 1 else "источников"
 
     return (
         f"<b>{title}</b>\n"
-        f"Статус: <b>{status}</b>\n"
-        f"Ключевых слов: {len(keywords)}\n"
-        f"Минус-слов: {len(minus_words)}\n"
-        f"Источников: {len(active_sources)}\n\n"
-        "<b>Ключевые слова</b>\n"
-        f"<blockquote>{compact_values(keywords)}</blockquote>"
+        f"{status} · {len(keywords)} {keyword_word} · {len(active_sources)} {source_word}"
+        f" · минус: {len(minus_words)}\n"
+        f"<blockquote>{compact_inline(keywords)}</blockquote>"
     )
 
 

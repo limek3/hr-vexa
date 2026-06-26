@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
-    toggle_text = "Выключить" if is_active else "Включить"
+    toggle_text = "Пауза" if is_active else "Запустить"
     toggle_action = "off" if is_active else "on"
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -13,6 +13,6 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
                 ),
                 InlineKeyboardButton(text="Источники", callback_data=f"search:sources:{search_id}"),
             ],
-            [InlineKeyboardButton(text="Удалить", callback_data=f"search:delete:{search_id}")],
+            [InlineKeyboardButton(text="Удалить поиск", callback_data=f"search:delete:{search_id}")],
         ],
     )

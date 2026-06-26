@@ -44,6 +44,15 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
     if saved_message is None:
         return
 
+    sender = await event.get_sender()
+    sender_username = getattr(sender, "username", None) if sender else None
+    sender_phone = getattr(sender, "phone", None) if sender else None
+    sender_name_parts = [
+        getattr(sender, "first_name", None) if sender else None,
+        getattr(sender, "last_name", None) if sender else None,
+    ]
+    sender_name = " ".join(part for part in sender_name_parts if part) or None
+
     searches = await list_active_searches_for_source(session, source.id)
     for search in searches:
         keywords = [keyword.value for keyword in search.keywords]
@@ -77,5 +86,8 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
                 source=source,
                 message=message,
                 match=match,
+                sender_username=sender_username,
+                sender_phone=sender_phone,
+                sender_name=sender_name,
             )
             logger.info("Notification sent: search_id=%s match_id=%s", search.id, match.id)

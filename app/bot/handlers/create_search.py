@@ -89,6 +89,7 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
         "<blockquote>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</blockquote>\n\n"
         "HR Vexa проверит доступ и начнет слушать новые сообщения.",
         reply_markup=cancel_menu(),
+        disable_web_page_preview=True,
     )
 
 
@@ -127,4 +128,5 @@ async def set_sources(message: Message, state: FSMContext, session: AsyncSession
         "<blockquote>Статус источников сначала будет «проверяется». "
         "Когда monitor получит доступ, поиск начнет приносить совпадения.</blockquote>",
         reply_markup=main_menu(),
+        disable_web_page_preview=True,
     )
