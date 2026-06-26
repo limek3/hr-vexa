@@ -25,8 +25,3 @@ HELP_TEXT = (
     "<blockquote>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</blockquote>\n\n"
     "После сохранения HR Vexa проверит доступ и начнет слушать новые сообщения."
 )
-
-FAVORITES_EMPTY_TEXT = (
-    "<b>Избранное пока пустое</b>\n\n"
-    "Когда появятся совпадения, в уведомлении будет кнопка <b>Сохранить</b>."
-)

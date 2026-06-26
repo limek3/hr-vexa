@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,10 +82,10 @@ async def show_reply_draft(callback: CallbackQuery, session: AsyncSession) -> No
 
     if callback.message:
         await callback.message.answer(
-            "<b>Готовый текст для ЛС</b>\n\n"
+            "<b>Сообщение для кандидата</b>\n\n"
             f"<blockquote>{html(draft)}</blockquote>\n\n"
-            "Можно открыть профиль кандидата кнопкой <b>Написать в ЛС</b> "
-            "и отправить этот текст.",
+            "Скопируйте текст и отправьте его кандидату.",
+            parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
     await callback.answer("Текст подготовлен.")

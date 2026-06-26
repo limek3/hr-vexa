@@ -1,6 +1,7 @@
 import re
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.formatting import html
@@ -38,20 +39,23 @@ def _short_text(text: str, *, limit: int = 900) -> str:
     return f"{text[:limit]}..." if len(text) > limit else text
 
 
+def _reply_draft(search_title: str) -> str:
+    return (
+        f"Доброго времени суток! Увидел(а) ваше сообщение по теме «{search_title}». "
+        "Подскажите, пожалуйста, предложение еще актуально?"
+    )
+
+
 def match_keyboard(match_id: int, url: str | None, username: str | None) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
-        [
-            InlineKeyboardButton(text="⭐ В избранное", callback_data=f"favorite:{match_id}"),
-            InlineKeyboardButton(text="Скрыть", callback_data=f"hide:{match_id}"),
-        ],
+        [InlineKeyboardButton(text="Скрыть", callback_data=f"hide:{match_id}")],
     ]
     if username:
-        buttons.insert(0, [InlineKeyboardButton(text="🔥 Написать в ЛС", url=f"https://t.me/{username}")])
-        buttons.insert(1, [InlineKeyboardButton(text="💬 Текст для ЛС", callback_data=f"reply_draft:{match_id}")])
+        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", url=f"https://t.me/{username}")])
     else:
-        buttons.insert(0, [InlineKeyboardButton(text="🔥 Написать в ЛС", callback_data=f"reply_draft:{match_id}")])
+        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", callback_data=f"reply_draft:{match_id}")])
     if url:
-        insert_at = 2 if username else 1
+        insert_at = 1
         buttons.insert(insert_at, [InlineKeyboardButton(text="Открыть источник", url=url)])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -75,19 +79,23 @@ async def send_candidate_notification(
     telegram_line = f"@{html(username)}" if username else "не найден"
     phone_line = html(phone) if phone else "не найден"
     name_line = f"\n<b>Автор:</b> {html(sender_name)}" if sender_name else ""
+    draft = _reply_draft(search.title)
 
     await bot.send_message(
         chat_id=user.telegram_user_id,
         text=(
-            "🔥 <b>Найдено совпадение</b>\n\n"
+            "<b>Найдено совпадение</b>\n\n"
             f"<b>Поиск:</b> {html(search.title)}\n"
             f"<b>Источник:</b> {html(source.title or source.input_ref)}\n"
             f"<b>Telegram:</b> {telegram_line}\n"
             f"<b>Телефон:</b> {phone_line}"
             f"{name_line}\n\n"
             "<b>Сообщение кандидата</b>\n"
-            f"<blockquote>{html(text) or 'без текста'}</blockquote>"
+            f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
+            "<b>Заготовка для ЛС</b>\n"
+            f"<blockquote>{html(draft)}</blockquote>"
         ),
         reply_markup=match_keyboard(match.id, message.url, username),
+        parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )

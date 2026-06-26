@@ -94,6 +94,75 @@ async def delete_user_search(session: AsyncSession, *, user_id: int, search_id: 
     return result.scalar_one_or_none() is not None
 
 
+async def update_search_title(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+    title: str,
+) -> bool:
+    result = await session.execute(
+        update(Search)
+        .where(Search.id == search_id, Search.user_id == user_id)
+        .values(title=title)
+        .returning(Search.id),
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def replace_search_keywords(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+    keywords: list[str],
+) -> bool:
+    search = await get_user_search(session, user_id=user_id, search_id=search_id)
+    if not search:
+        return False
+
+    await session.execute(delete(SearchKeyword).where(SearchKeyword.search_id == search_id))
+    session.add_all(SearchKeyword(search_id=search_id, value=value) for value in keywords)
+    await session.flush()
+    return True
+
+
+async def replace_search_minus_words(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+    minus_words: list[str],
+) -> bool:
+    search = await get_user_search(session, user_id=user_id, search_id=search_id)
+    if not search:
+        return False
+
+    await session.execute(delete(SearchMinusWord).where(SearchMinusWord.search_id == search_id))
+    session.add_all(SearchMinusWord(search_id=search_id, value=value) for value in minus_words)
+    await session.flush()
+    return True
+
+
+async def replace_search_sources(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+    sources: list[str],
+) -> bool:
+    search = await get_user_search(session, user_id=user_id, search_id=search_id)
+    if not search:
+        return False
+
+    await session.execute(delete(SearchSource).where(SearchSource.search_id == search_id))
+    for source_ref in sources:
+        source = await get_or_create_source(session, source_ref)
+        session.add(SearchSource(search_id=search_id, source_id=source.id, is_active=True))
+    await session.flush()
+    return True
+
+
 async def list_active_searches_for_source(session: AsyncSession, source_id: int) -> list[Search]:
     result = await session.execute(
         select(Search)

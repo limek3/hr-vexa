@@ -2,9 +2,9 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from app.bot.keyboards.labels import FAVORITES, HELP
+from app.bot.keyboards.labels import HELP
 from app.bot.keyboards.menu import main_menu
-from app.bot.messages import FAVORITES_EMPTY_TEXT, HELP_TEXT
+from app.bot.messages import HELP_TEXT
 
 router = Router()
 
@@ -13,11 +13,6 @@ router = Router()
 @router.message(lambda message: message.text == HELP)
 async def help_message(message: Message) -> None:
     await message.answer(HELP_TEXT, reply_markup=main_menu())
-
-
-@router.message(lambda message: message.text == FAVORITES)
-async def favorites_placeholder(message: Message) -> None:
-    await message.answer(FAVORITES_EMPTY_TEXT, reply_markup=main_menu())
 
 
 @router.message()

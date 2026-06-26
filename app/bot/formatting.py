@@ -36,7 +36,7 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 def search_card(search: Search, *, index: int | None = None) -> str:
     title = f"{index}. {html(search.title)}" if index is not None else html(search.title)
-    status = "🟢 включен" if search.is_active else "⏸ выключен"
+    status = "включен" if search.is_active else "выключен"
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     active_sources = [link for link in search.sources if link.is_active]
