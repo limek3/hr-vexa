@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -54,6 +54,44 @@ async def list_user_searches(session: AsyncSession, user_id: int) -> list[Search
         .order_by(Search.created_at.desc()),
     )
     return list(result.scalars().all())
+
+
+async def get_user_search(session: AsyncSession, *, user_id: int, search_id: int) -> Search | None:
+    result = await session.execute(
+        select(Search)
+        .where(Search.id == search_id, Search.user_id == user_id)
+        .options(
+            selectinload(Search.keywords),
+            selectinload(Search.minus_words),
+            selectinload(Search.sources).selectinload(SearchSource.source),
+        ),
+    )
+    return result.scalar_one_or_none()
+
+
+async def set_search_active(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+    is_active: bool,
+) -> bool:
+    result = await session.execute(
+        update(Search)
+        .where(Search.id == search_id, Search.user_id == user_id)
+        .values(is_active=is_active)
+        .returning(Search.id),
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def delete_user_search(session: AsyncSession, *, user_id: int, search_id: int) -> bool:
+    result = await session.execute(
+        delete(Search)
+        .where(Search.id == search_id, Search.user_id == user_id)
+        .returning(Search.id),
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def list_active_searches_for_source(session: AsyncSession, source_id: int) -> list[Search]:

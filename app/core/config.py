@@ -16,8 +16,6 @@ class Settings(BaseSettings):
     telegram_api_hash: str = Field(default="", alias="TELEGRAM_API_HASH")
     telegram_session_string: str = Field(default="", alias="TELEGRAM_SESSION_STRING")
 
-    telegram_webhook_secret: str = Field(default="", alias="TELEGRAM_WEBHOOK_SECRET")
-
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 

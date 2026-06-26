@@ -1,58 +1,37 @@
-# Deploy Checklist
+# Deploy HR Vexa to Railway
 
-## Supabase
-
-1. Create a Supabase project.
-2. Open Project Settings -> Database -> Connect.
-3. Copy the Postgres connection string.
-4. Put it into `DATABASE_URL`.
-
-For the always-on monitor worker, prefer direct connection or session pooler.
-
-## Telegram Bot
-
-1. Create bot in BotFather.
-2. Copy token to `BOT_TOKEN`.
-3. Set bot name, about text and description.
-
-## MTProto
-
-1. Put `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` into `.env`.
-2. Run locally:
+## 1. Push Code to GitHub
 
 ```bash
-python -m app.monitor.login
+git add .
+git commit -m "Update HR Vexa"
+git push
 ```
 
-3. Copy printed `TELEGRAM_SESSION_STRING`.
-
-## Vercel
-
-Use Vercel for the bot webhook only.
-
-Required env:
-
-```env
-BOT_TOKEN=
-DATABASE_URL=
-TELEGRAM_WEBHOOK_SECRET=
-```
-
-Set webhook:
+If GitHub remote is wrong:
 
 ```bash
-curl "https://api.telegram.org/bot$BOT_TOKEN/setWebhook?url=https://YOUR_DOMAIN.vercel.app/api/telegram&secret_token=$TELEGRAM_WEBHOOK_SECRET"
+git remote set-url origin https://github.com/YOUR_USERNAME/hr-vexa.git
+git push -u origin main
 ```
 
-## Worker Hosting
+## 2. Create Railway Service
 
-Use Render, Railway, Fly.io or VPS for:
+1. Open Railway.
+2. New Project.
+3. GitHub Repository.
+4. Select the `hr-vexa` repository.
+5. Railway will use `railway.json`.
+
+Start command:
 
 ```bash
-python -m app.monitor.main
+python -m app.worker.main
 ```
 
-Required env:
+## 3. Add Variables
+
+Add these variables to the Railway service:
 
 ```env
 BOT_TOKEN=
@@ -60,4 +39,33 @@ DATABASE_URL=
 TELEGRAM_API_ID=
 TELEGRAM_API_HASH=
 TELEGRAM_SESSION_STRING=
+APP_ENV=production
+LOG_LEVEL=INFO
+```
+
+Optional:
+
+```env
+BOT_PROXY_URL=
+```
+
+## 4. Keep One Service
+
+Use only one Railway service for this project.
+
+If you have both `hrvexa-bot` and `hrvexa-monitor`, delete one of them. Running two services with the same `BOT_TOKEN` causes:
+
+```text
+Conflict: terminated by other getUpdates request
+```
+
+## 5. Check Logs
+
+Healthy logs:
+
+```text
+Starting combined worker: bot + monitor
+Bot polling started
+Run polling for bot @hrvexa_bot
+MTProto monitor started as ...
 ```

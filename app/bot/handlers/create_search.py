@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.formatting import html
 from app.bot.keyboards.labels import CANCEL, LEGACY_NEW_SEARCH, NEW_SEARCH, SKIP
 from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
 from app.bot.states.create_search import CreateSearch
@@ -30,12 +31,10 @@ async def create_search_start(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(CreateSearch.title)
     await message.answer(
-        "<b>Новый поиск</b>\n\n"
-        "Шаг 1 из 4. Напишите короткое название.\n\n"
-        "Примеры:\n"
-        "<code>Вахта Москва</code>\n"
-        "<code>Курьеры СПб</code>\n"
-        "<code>Комплектовщики Казань</code>",
+        "<b>Новый поиск</b>\n"
+        "Шаг 1 из 4: название\n\n"
+        "Напишите короткое название, чтобы потом легко найти поиск в списке.\n\n"
+        "<blockquote>Вахта Москва\nКурьеры СПб\nКомплектовщики Казань</blockquote>",
         reply_markup=cancel_menu(),
     )
 
@@ -53,11 +52,10 @@ async def set_title(message: Message, state: FSMContext) -> None:
     await state.update_data(title=title)
     await state.set_state(CreateSearch.keywords)
     await message.answer(
-        "<b>Шаг 2 из 4. Ключевые слова</b>\n\n"
-        "Отправьте слова или фразы, по которым нужно искать кандидатов.\n"
-        "Можно через запятую или с новой строки.\n\n"
-        "Пример:\n"
-        "<code>вахта\nкомплектовщик\nразнорабочий</code>",
+        "<b>Шаг 2 из 4: ключевые слова</b>\n\n"
+        "Пишите слова или фразы, которые должны быть в сообщении кандидата.\n"
+        "Лучше каждую фразу с новой строки.\n\n"
+        "<blockquote>вахта\nкомплектовщик\nразнорабочий</blockquote>",
         reply_markup=cancel_menu(),
     )
 
@@ -72,10 +70,9 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     await state.update_data(keywords=keywords)
     await state.set_state(CreateSearch.minus_words)
     await message.answer(
-        "<b>Шаг 3 из 4. Минус-слова</b>\n\n"
-        "Эти слова исключат неподходящие сообщения.\n\n"
-        "Пример:\n"
-        "<code>обучение\nфраншиза\nинвестиции</code>\n\n"
+        "<b>Шаг 3 из 4: минус-слова</b>\n\n"
+        "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
+        "<blockquote>обучение\nфраншиза\nинвестиции</blockquote>\n\n"
         "Если минус-слова не нужны, нажмите <b>Пропустить</b>.",
         reply_markup=skip_menu(),
     )
@@ -87,11 +84,10 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await state.update_data(minus_words=minus_words)
     await state.set_state(CreateSearch.sources)
     await message.answer(
-        "<b>Шаг 4 из 4. Источники</b>\n\n"
-        "Отправьте Telegram-источники, каждый с новой строки.\n\n"
-        "Поддерживается:\n"
-        "<code>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</code>\n\n"
-        "После сохранения worker проверит доступ и начнет слушать новые сообщения.",
+        "<b>Шаг 4 из 4: источники</b>\n\n"
+        "Отправьте каналы или группы, каждый источник с новой строки.\n\n"
+        "<blockquote>@channel\nhttps://t.me/channel\nhttps://t.me/+invite</blockquote>\n\n"
+        "HR Vexa проверит доступ и начнет слушать новые сообщения.",
         reply_markup=cancel_menu(),
     )
 
@@ -124,10 +120,11 @@ async def set_sources(message: Message, state: FSMContext, session: AsyncSession
 
     await message.answer(
         "<b>Поиск создан</b>\n\n"
-        f"<b>Название:</b> {search.title}\n"
+        f"<b>Название:</b> {html(search.title)}\n"
         f"<b>Ключевых слов:</b> {len(data['keywords'])}\n"
         f"<b>Минус-слов:</b> {len(data['minus_words'])}\n"
         f"<b>Источников:</b> {len(sources)}\n\n"
-        "Monitor-worker проверит доступ к источникам и начнет отслеживать новые сообщения.",
+        "<blockquote>Статус источников сначала будет «проверяется». "
+        "Когда monitor получит доступ, поиск начнет приносить совпадения.</blockquote>",
         reply_markup=main_menu(),
     )
