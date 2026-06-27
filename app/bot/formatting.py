@@ -2,6 +2,8 @@ from html import escape
 
 from app.db.models import Search
 
+DIVIDER = "━━━━━━━━━━━━━━"
+
 
 def html(value: object) -> str:
     return escape(str(value), quote=False)
@@ -45,8 +47,9 @@ def search_card(search: Search, *, index: int | None = None) -> str:
 
     return (
         f"<b>{title}</b>\n"
-        f"<b>{status}</b> · {len(keywords)} {keyword_word} · {len(active_sources)} {source_word} "
-        f"· минус: {len(minus_words)}\n"
+        f"{DIVIDER}\n"
+        f"<b>{status}</b> · {len(keywords)} {keyword_word} · "
+        f"{len(active_sources)} {source_word} · минус: {len(minus_words)}\n\n"
         f"<blockquote>{compact_inline(keywords)}</blockquote>"
     )
 
@@ -59,12 +62,13 @@ def search_edit_card(search: Search) -> str:
 
     return (
         f"<b>{html(search.title)}</b>\n"
-        f"Статус: <b>{status}</b>\n\n"
-        "<b>Ключевые слова</b>\n"
-        f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n"
-        "<b>Минус-слова</b>\n"
-        f"<blockquote>{compact_values(minus_words, limit=8)}</blockquote>\n"
-        "<b>Источники</b>\n"
+        f"Статус: <b>{status}</b>\n"
+        f"{DIVIDER}\n\n"
+        "▌ <b>Ключевые слова</b>\n"
+        f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n\n"
+        "▌ <b>Минус-слова</b>\n"
+        f"<blockquote>{compact_values(minus_words, limit=8)}</blockquote>\n\n"
+        "▌ <b>Источники</b>\n"
         f"<blockquote>{compact_values(sources, limit=8)}</blockquote>"
     )
 
