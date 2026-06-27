@@ -1,9 +1,9 @@
 import logging
 
 from telethon import TelegramClient
-from telethon.errors import RPCError, UserAlreadyParticipantError
-from telethon.tl.functions.channels import GetFullChannelRequest, JoinChannelRequest
-from telethon.tl.functions.messages import ImportChatInviteRequest
+from telethon.errors import RPCError
+from telethon.tl.functions.messages import CheckChatInviteRequest
+from telethon.tl.types import ChatInviteAlready
 
 from app.db.models import Source
 
@@ -26,57 +26,27 @@ def _source_type(entity: object) -> str:
     return "chat"
 
 
-async def _linked_discussion(
-    client: TelegramClient,
-    entity: object,
-    source_ref: str,
-) -> tuple[int, str, str] | None:
-    if not getattr(entity, "broadcast", False):
-        return None
-    try:
-        full = await client(GetFullChannelRequest(entity))
-        linked_chat_id = getattr(full.full_chat, "linked_chat_id", None)
-        if not linked_chat_id:
-            return None
-        linked_entity = await client.get_entity(linked_chat_id)
-        linked_id = getattr(linked_entity, "id", None)
-        if linked_id is None:
-            return None
-        title = getattr(linked_entity, "title", None) or f"Discussion {linked_id}"
-        return linked_id, title, _source_type(linked_entity)
-    except RPCError as exc:
-        logger.info("Could not resolve linked discussion for %s: %s", source_ref, exc)
-    except ValueError as exc:
-        logger.info("Linked discussion not found for %s: %s", source_ref, exc)
-    return None
-
-
-async def resolve_and_join_source(
+async def resolve_source_access(
     client: TelegramClient,
     source: Source,
 ) -> tuple[int | None, str, str, str, tuple[int, str, str] | None]:
     try:
         invite_hash = _invite_hash(source.input_ref)
         if invite_hash:
-            try:
-                updates = await client(ImportChatInviteRequest(invite_hash))
-                chats = getattr(updates, "chats", [])
-                entity = chats[0] if chats else await client.get_entity(source.input_ref)
-            except UserAlreadyParticipantError:
-                entity = await client.get_entity(source.input_ref)
+            checked = await client(CheckChatInviteRequest(invite_hash))
+            if not isinstance(checked, ChatInviteAlready):
+                logger.info("Invite source is not joined and auto-join is disabled: %s", source.input_ref)
+                return source.telegram_id, source.title or source.input_ref, source.type, "unavailable", None
+            entity = checked.chat
         else:
             entity = await client.get_entity(source.input_ref)
-            try:
-                await client(JoinChannelRequest(entity))
-            except UserAlreadyParticipantError:
-                pass
-            except RPCError as exc:
-                logger.info("Could not join %s: %s", source.input_ref, exc)
+            if getattr(entity, "left", False):
+                logger.info("Source is not joined and auto-join is disabled: %s", source.input_ref)
+                return source.telegram_id, getattr(entity, "title", None) or source.input_ref, _source_type(entity), "unavailable", None
 
         telegram_id = getattr(entity, "id", None)
         title = getattr(entity, "title", None) or source.input_ref
-        linked_discussion = await _linked_discussion(client, entity, source.input_ref)
-        return telegram_id, title, _source_type(entity), "available", linked_discussion
+        return telegram_id, title, _source_type(entity), "available", None
     except RPCError as exc:
         logger.warning("Source unavailable %s: %s", source.input_ref, exc)
         return source.telegram_id, source.title or source.input_ref, source.type, "unavailable", None
