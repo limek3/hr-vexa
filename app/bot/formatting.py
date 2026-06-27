@@ -38,7 +38,7 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 
 def title_with_status(title: str, status: str) -> str:
-    return f"<b>{title}</b>{TITLE_GAP}<b>{status}</b>"
+    return f"▌ <b>{title}</b>{TITLE_GAP}<b>{status}</b>"
 
 
 def search_card(search: Search, *, index: int | None = None) -> str:
@@ -52,7 +52,7 @@ def search_card(search: Search, *, index: int | None = None) -> str:
 
     return (
         f"{title_with_status(title, status)}\n"
-        f"{DIVIDER}\n"
+        f"{DIVIDER}\n\n"
         f"{len(keywords)} {keyword_word} · {len(active_sources)} {source_word} · "
         f"минус: {len(minus_words)}\n\n"
         f"<blockquote>{compact_inline(keywords)}</blockquote>"

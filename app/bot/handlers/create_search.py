@@ -34,7 +34,7 @@ async def create_search_start(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.title)
     await message.answer(
         "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n"
+        f"{DIVIDER}\n\n"
         "▌ <b>Шаг 1 из 4:</b> название\n\n"
         "Напишите короткое название, чтобы потом легко найти поиск в списке.\n\n"
         "▌ <b>Примеры</b>\n"
@@ -57,7 +57,7 @@ async def set_title(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.keywords)
     await message.answer(
         "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n"
+        f"{DIVIDER}\n\n"
         "▌ <b>Шаг 2 из 4:</b> ключевые слова\n\n"
         "Пишите слова или фразы, которые должны быть в нужном сообщении.\n"
         "Лучше каждую фразу с новой строки.\n\n"
@@ -82,7 +82,7 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.minus_words)
     await message.answer(
         "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n"
+        f"{DIVIDER}\n\n"
         "▌ <b>Шаг 3 из 4:</b> минус-слова\n\n"
         "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
         "▌ <b>Примеры</b>\n"
@@ -99,7 +99,7 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateSearch.sources)
     await message.answer(
         "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n"
+        f"{DIVIDER}\n\n"
         "▌ <b>Шаг 4 из 4:</b> источники\n\n"
         "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
         "▌ <b>Примеры</b>\n"

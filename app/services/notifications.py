@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -46,12 +47,21 @@ def _reply_draft(search_title: str) -> str:
     )
 
 
-def match_keyboard(match_id: int, url: str | None, username: str | None) -> InlineKeyboardMarkup:
+def _private_chat_url(username: str, draft: str) -> str:
+    return f"tg://resolve?domain={username}&text={quote(draft)}"
+
+
+def match_keyboard(
+    match_id: int,
+    url: str | None,
+    username: str | None,
+    draft: str,
+) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
         [InlineKeyboardButton(text="Скрыть", callback_data=f"hide:{match_id}")],
     ]
     if username:
-        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", url=f"https://t.me/{username}")])
+        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", url=_private_chat_url(username, draft))])
     else:
         buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", callback_data=f"reply_draft:{match_id}")])
     if url:
@@ -93,11 +103,9 @@ async def send_candidate_notification(
             f"Телефон: {phone_line}"
             f"{name_line}</blockquote>\n\n"
             "▌ <b>Сообщение</b>\n"
-            f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
-            "▌ <b>Заготовка для ЛС</b>\n"
-            f"<blockquote>{html(draft)}</blockquote>"
+            f"<blockquote>{html(text) or 'без текста'}</blockquote>"
         ),
-        reply_markup=match_keyboard(match.id, message.url, username),
+        reply_markup=match_keyboard(match.id, message.url, username, draft),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
