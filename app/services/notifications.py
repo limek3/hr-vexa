@@ -4,7 +4,7 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.bot.formatting import html
+from app.bot.formatting import DIVIDER, html
 from app.db.models import Match, Message, Search, Source, User
 
 
@@ -78,21 +78,23 @@ async def send_candidate_notification(
 
     telegram_line = f"@{html(username)}" if username else "не найден"
     phone_line = html(phone) if phone else "не найден"
-    name_line = f"\n<b>Автор:</b> {html(sender_name)}" if sender_name else ""
+    name_line = f"\nАвтор: {html(sender_name)}" if sender_name else ""
     draft = _reply_draft(search.title)
 
     await bot.send_message(
         chat_id=user.telegram_user_id,
         text=(
-            "<b>Найдено совпадение</b>\n\n"
-            f"<b>Поиск:</b> {html(search.title)}\n"
-            f"<b>Источник:</b> {html(source.title or source.input_ref)}\n"
-            f"<b>Telegram:</b> {telegram_line}\n"
-            f"<b>Телефон:</b> {phone_line}"
-            f"{name_line}\n\n"
-            "<b>Сообщение</b>\n"
+            "▌ <b>Найдено совпадение</b>\n"
+            f"{DIVIDER}\n\n"
+            "▌ <b>Данные</b>\n"
+            f"<blockquote>Поиск: {html(search.title)}\n"
+            f"Источник: {html(source.title or source.input_ref)}\n"
+            f"Telegram: {telegram_line}\n"
+            f"Телефон: {phone_line}"
+            f"{name_line}</blockquote>\n\n"
+            "▌ <b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
-            "<b>Заготовка для ЛС</b>\n"
+            "▌ <b>Заготовка для ЛС</b>\n"
             f"<blockquote>{html(draft)}</blockquote>"
         ),
         reply_markup=match_keyboard(match.id, message.url, username),

@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import compact_values, search_card, search_edit_card, source_list
+from app.bot.formatting import DIVIDER, compact_values, search_card, search_edit_card, source_list
 from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
@@ -109,7 +109,11 @@ async def cancel_edit_search(
         user = await get_or_create_user(session, message.from_user)
         await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
         return
-    await message.answer("<b>Редактирование отменено.</b>", reply_markup=main_menu())
+    await message.answer(
+        "▌ <b>Редактирование отменено</b>\n"
+        f"{DIVIDER}",
+        reply_markup=main_menu(),
+    )
 
 
 @router.message(EditSearch.title)
@@ -127,7 +131,8 @@ async def save_search_title(message: Message, state: FSMContext, session: AsyncS
                 message,
                 data,
                 text=(
-                    "<b>Новое название поиска</b>\n\n"
+                    "▌ <b>Новое название поиска</b>\n"
+                    f"{DIVIDER}\n\n"
                     "Название слишком короткое. Напишите минимум 2 символа."
                 ),
                 search_id=search_id,
@@ -161,7 +166,8 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
                 message,
                 data,
                 text=(
-                    "<b>Новые ключевые слова</b>\n\n"
+                    "▌ <b>Новые ключевые слова</b>\n"
+                    f"{DIVIDER}\n\n"
                     "Нужно хотя бы одно ключевое слово. Отправьте список заново."
                 ),
                 search_id=search_id,
@@ -233,7 +239,8 @@ async def save_search_sources(message: Message, state: FSMContext, session: Asyn
                 message,
                 data,
                 text=(
-                    "<b>Новые источники</b>\n\n"
+                    "▌ <b>Новые источники</b>\n"
+                    f"{DIVIDER}\n\n"
                     "Не вижу источников. Отправьте @username или ссылки t.me, "
                     "каждую с новой строки."
                 ),
@@ -262,14 +269,16 @@ async def my_searches(message: Message, session: AsyncSession) -> None:
     searches = await list_user_searches(session, user.id)
     if not searches:
         await message.answer(
-            "<b>Поисков пока нет.</b>\n\n"
+            "▌ <b>Поисков пока нет</b>\n"
+            f"{DIVIDER}\n\n"
             "Нажмите <b>Новый поиск</b>, чтобы создать первый мониторинг.",
             reply_markup=main_menu(),
         )
         return
 
     await message.answer(
-        "<b>Мои поиски</b>\n\n"
+        "▌ <b>Мои поиски</b>\n"
+        f"{DIVIDER}\n\n"
         "Ниже показаны последние поиски. Можно включить, выключить, посмотреть источники или удалить.",
         reply_markup=main_menu(),
     )
@@ -375,7 +384,7 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "<b>Новое название поиска</b>\n"
+                "▌ <b>Новое название поиска</b>\n"
                 "<blockquote>Например: Аренда Москва</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
@@ -394,10 +403,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "<b>Новые ключевые слова</b>\n"
+                "▌ <b>Новые ключевые слова</b>\n"
                 "Отправьте полный новый список. "
                 "Каждое слово или фразу лучше писать с новой строки.\n\n"
-                f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
+                "▌ <b>Сейчас</b>\n"
+                f"<blockquote>{compact_values(current)}</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -415,10 +425,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "<b>Новые минус-слова</b>\n"
+                "▌ <b>Новые минус-слова</b>\n"
                 "Отправьте полный новый список. "
                 "Чтобы очистить минус-слова, отправьте один символ: <code>-</code>.\n\n"
-                f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
+                "▌ <b>Сейчас</b>\n"
+                f"<blockquote>{compact_values(current)}</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -436,10 +447,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "<b>Новые источники</b>\n"
+                "▌ <b>Новые источники</b>\n"
                 "Отправьте полный новый список каналов или групп, "
                 "каждый источник с новой строки.\n\n"
-                f"<b>Сейчас:</b>\n<blockquote>{compact_values(current)}</blockquote>",
+                "▌ <b>Сейчас</b>\n"
+                f"<blockquote>{compact_values(current)}</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -449,5 +461,8 @@ async def handle_search_action(
     if action == "delete":
         deleted = await delete_user_search(session, user_id=user.id, search_id=search_id)
         if callback.message and deleted:
-            await callback.message.edit_text("<b>Поиск удален.</b>")
+            await callback.message.edit_text(
+                "▌ <b>Поиск удален</b>\n"
+                f"{DIVIDER}"
+            )
         await callback.answer("Удалено." if deleted else "Не найдено.")

@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.formatting import DIVIDER
 from app.bot.keyboards.inline import quiet_hours_actions
 from app.bot.keyboards.labels import HELP, QUIET_HOURS
 from app.bot.keyboards.menu import main_menu
@@ -18,9 +19,10 @@ router = Router()
 def _quiet_hours_text(settings: UserSettings) -> str:
     status = "включены" if settings.quiet_hours_enabled else "выключены"
     return (
-        "<b>Тихие часы</b>\n\n"
-        f"Статус: <b>{status}</b>\n"
+        f"▌ <b>Тихие часы</b>     <b>{status}</b>\n"
+        f"{DIVIDER}\n\n"
         "Время: <b>00:00–07:00 по МСК</b>\n\n"
+        "▌ <b>Как работает</b>\n"
         "<blockquote>Когда тихие часы включены, Vexa продолжает находить совпадения, "
         "но не присылает уведомления ночью.</blockquote>"
     )
@@ -63,7 +65,8 @@ async def toggle_quiet_hours_setting(callback: CallbackQuery, session: AsyncSess
 @router.message()
 async def fallback(message: Message) -> None:
     await message.answer(
-        "Я не распознал команду.\n\n"
+        "▌ <b>Команда не распознана</b>\n"
+        f"{DIVIDER}\n\n"
         "Выберите действие в меню или отправьте /help.",
         reply_markup=main_menu(),
     )
