@@ -19,7 +19,8 @@ router = Router()
 def _quiet_hours_text(settings: UserSettings) -> str:
     status = "включены" if settings.quiet_hours_enabled else "выключены"
     return (
-        f"▌ <b>Тихие часы</b>     <b>{status}</b>\n"
+        "▌ <b>Тихие часы</b>\n"
+        f"Статус: <b>{status}</b>\n"
         f"{DIVIDER}\n\n"
         "Время: <b>00:00–07:00 по МСК</b>\n\n"
         "▌ <b>Как работает</b>\n"

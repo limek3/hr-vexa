@@ -198,7 +198,11 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
 
 
 @router.message(EditSearch.minus_words)
-async def save_search_minus_words(message: Message, state: FSMContext, session: AsyncSession) -> None:
+async def save_search_minus_words(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+) -> None:
     if not message.from_user:
         return
 
@@ -279,7 +283,8 @@ async def my_searches(message: Message, session: AsyncSession) -> None:
     await message.answer(
         "▌ <b>Мои поиски</b>\n"
         f"{DIVIDER}\n\n"
-        "Ниже показаны последние поиски. Можно включить, выключить, посмотреть источники или удалить.",
+        "Ниже последние поиски.\n"
+        "Каждая карточка управляется своими кнопками.",
         reply_markup=main_menu(),
     )
 

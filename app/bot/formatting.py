@@ -3,11 +3,16 @@ from html import escape
 from app.db.models import Search
 
 DIVIDER = "━━━━━━━━━━━━━━"
-TITLE_GAP = "     "
+MAX_VALUE_LENGTH = 34
 
 
 def html(value: object) -> str:
     return escape(str(value), quote=False)
+
+
+def _short_value(value: str, *, limit: int = MAX_VALUE_LENGTH) -> str:
+    value = value.strip()
+    return f"{value[: limit - 3]}..." if len(value) > limit else value
 
 
 def source_status_label(status: str) -> str:
@@ -23,7 +28,7 @@ def source_status_label(status: str) -> str:
 def compact_values(values: list[str], *, limit: int = 5) -> str:
     if not values:
         return "нет"
-    visible = values[:limit]
+    visible = [_short_value(value) for value in values[:limit]]
     suffix = f"\n...и еще {len(values) - limit}" if len(values) > limit else ""
     return "\n".join(f"- {html(value)}" for value in visible) + suffix
 
@@ -31,14 +36,14 @@ def compact_values(values: list[str], *, limit: int = 5) -> str:
 def compact_inline(values: list[str], *, limit: int = 4) -> str:
     if not values:
         return "ключевые слова не заданы"
-    visible = ", ".join(html(value) for value in values[:limit])
+    visible = ", ".join(html(_short_value(value, limit=22)) for value in values[:limit])
     if len(values) > limit:
         visible = f"{visible}, +{len(values) - limit}"
     return visible
 
 
 def title_with_status(title: str, status: str) -> str:
-    return f"▌ <b>{title}</b>{TITLE_GAP}<b>{status}</b>"
+    return f"▌ <b>{title}</b>\nСтатус: <b>{status}</b>"
 
 
 def search_card(search: Search, *, index: int | None = None) -> str:
@@ -47,14 +52,13 @@ def search_card(search: Search, *, index: int | None = None) -> str:
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     active_sources = [link for link in search.sources if link.is_active]
-    keyword_word = "ключ" if len(keywords) == 1 else "ключей"
-    source_word = "источник" if len(active_sources) == 1 else "источников"
 
     return (
         f"{title_with_status(title, status)}\n"
         f"{DIVIDER}\n\n"
-        f"{len(keywords)} {keyword_word} · {len(active_sources)} {source_word} · "
-        f"минус: {len(minus_words)}\n\n"
+        f"Ключи: <b>{len(keywords)}</b> · "
+        f"Источники: <b>{len(active_sources)}</b> · "
+        f"Минус: <b>{len(minus_words)}</b>\n\n"
         f"<blockquote>{compact_inline(keywords)}</blockquote>"
     )
 
@@ -68,9 +72,9 @@ def search_edit_card(search: Search) -> str:
     return (
         f"{title_with_status(html(search.title), status)}\n"
         f"{DIVIDER}\n\n"
-        "▌ <b>Ключевые слова</b>\n"
+        "▌ <b>Ключи</b>\n"
         f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n\n"
-        "▌ <b>Минус-слова</b>\n"
+        "▌ <b>Минус</b>\n"
         f"<blockquote>{compact_values(minus_words, limit=8)}</blockquote>\n\n"
         "▌ <b>Источники</b>\n"
         f"<blockquote>{compact_values(sources, limit=8)}</blockquote>"
@@ -93,9 +97,10 @@ def source_list(search: Search) -> str:
     ]
     for index, link in enumerate(search.sources, start=1):
         source = link.source
+        source_title = _short_value(source.title or source.input_ref)
         lines.append(
-            f"▌ <b>{index}. {html(source.title or source.input_ref)}</b>\n"
-            f"<blockquote>{html(source.input_ref)}\n"
+            f"▌ <b>{index}. {html(source_title)}</b>\n"
+            f"<blockquote>{html(_short_value(source.input_ref))}\n"
             f"Статус: {source_status_label(source.access_status)}</blockquote>",
         )
     return "\n\n".join(lines)
