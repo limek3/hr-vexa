@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DailyStats, Match, Message
+from app.db.models import DailyStats, Match, MatchFeedback, Message, SearchKeyword, SearchMinusWord
 
 
 async def save_message_if_new(
@@ -92,3 +92,54 @@ async def hide_match(session: AsyncSession, *, match_id: int, user_id: int) -> b
     )
     return result.scalar_one_or_none() is not None
 
+
+async def save_match_feedback(
+    session: AsyncSession,
+    *,
+    match_id: int,
+    user_id: int,
+    is_relevant: bool,
+) -> bool:
+    result = await session.execute(
+        select(Match, Message)
+        .join(Message, Message.id == Match.message_id)
+        .where(Match.id == match_id, Match.user_id == user_id),
+    )
+    row = result.one_or_none()
+    if not row:
+        return False
+
+    match, message = row
+    keyword_result = await session.execute(
+        select(SearchKeyword.value).where(SearchKeyword.search_id == match.search_id),
+    )
+    minus_result = await session.execute(
+        select(SearchMinusWord.value).where(SearchMinusWord.search_id == match.search_id),
+    )
+    keyword_snapshot = "\n".join(keyword_result.scalars().all())
+    minus_word_snapshot = "\n".join(minus_result.scalars().all())
+
+    stmt = (
+        pg_insert(MatchFeedback)
+        .values(
+            user_id=user_id,
+            match_id=match.id,
+            search_id=match.search_id,
+            message_id=match.message_id,
+            is_relevant=is_relevant,
+            keyword_snapshot=keyword_snapshot,
+            minus_word_snapshot=minus_word_snapshot,
+            message_text=message.text,
+        )
+        .on_conflict_do_update(
+            index_elements=["user_id", "match_id"],
+            set_={
+                "is_relevant": is_relevant,
+                "keyword_snapshot": keyword_snapshot,
+                "minus_word_snapshot": minus_word_snapshot,
+                "message_text": message.text,
+            },
+        )
+    )
+    await session.execute(stmt)
+    return True

@@ -160,6 +160,27 @@ class Match(Base):
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class MatchFeedback(Base):
+    __tablename__ = "match_feedback"
+    __table_args__ = (UniqueConstraint("user_id", "match_id", name="uq_match_feedback_user_match"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
+    search_id: Mapped[int] = mapped_column(ForeignKey("searches.id", ondelete="CASCADE"), index=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
+    is_relevant: Mapped[bool] = mapped_column(Boolean)
+    keyword_snapshot: Mapped[str] = mapped_column(Text, default="")
+    minus_word_snapshot: Mapped[str] = mapped_column(Text, default="")
+    message_text: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 class Favorite(Base):
     __tablename__ = "favorites"
     __table_args__ = (UniqueConstraint("user_id", "match_id", name="uq_favorites_user_match"),)

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot.formatting import DIVIDER, html
 from app.db.models import Match, Message as DbMessage, Search
 from app.db.repositories.favorites import save_favorite_once
-from app.db.repositories.messages import hide_match
+from app.db.repositories.messages import hide_match, save_match_feedback
 from app.db.repositories.users import get_or_create_user
 
 router = Router()
@@ -18,6 +18,19 @@ def _match_id(callback_data: str | None) -> int | None:
         return None
     raw_id = callback_data.split(":", maxsplit=1)[1]
     return int(raw_id) if raw_id.isdigit() else None
+
+
+def _feedback_payload(callback_data: str | None) -> tuple[bool, int] | None:
+    if not callback_data:
+        return None
+    parts = callback_data.split(":")
+    if len(parts) != 3 or parts[0] != "feedback" or not parts[2].isdigit():
+        return None
+    if parts[1] == "good":
+        return True, int(parts[2])
+    if parts[1] == "bad":
+        return False, int(parts[2])
+    return None
 
 
 @router.callback_query(F.data.startswith("favorite:"))
@@ -50,6 +63,32 @@ async def hide_notification(callback: CallbackQuery, session: AsyncSession) -> N
     if callback.message and hidden:
         await callback.message.edit_reply_markup(reply_markup=None)
     await callback.answer("Скрыто." if hidden else "Не найдено.")
+
+
+@router.callback_query(F.data.startswith("feedback:"))
+async def save_feedback(callback: CallbackQuery, session: AsyncSession) -> None:
+    if not callback.from_user:
+        return
+
+    payload = _feedback_payload(callback.data)
+    if payload is None:
+        await callback.answer("Не удалось сохранить оценку.")
+        return
+
+    is_relevant, match_id = payload
+    user = await get_or_create_user(session, callback.from_user)
+    saved = await save_match_feedback(
+        session,
+        match_id=match_id,
+        user_id=user.id,
+        is_relevant=is_relevant,
+    )
+    if not saved:
+        await callback.answer("Совпадение не найдено.")
+        return
+
+    await session.commit()
+    await callback.answer("Оценка сохранена. Vexa будет использовать это для улучшения фильтра.")
 
 
 @router.callback_query(F.data.startswith("reply_draft:"))

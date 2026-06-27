@@ -7,6 +7,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.formatting import DIVIDER, html
 from app.db.models import Match, Message, Search, Source, User
+from app.services.filtering import analyze_match
 
 
 PHONE_RE = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
@@ -58,6 +59,10 @@ def match_keyboard(
     draft: str,
 ) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(text="Подходит", callback_data=f"feedback:good:{match_id}"),
+            InlineKeyboardButton(text="Не подходит", callback_data=f"feedback:bad:{match_id}"),
+        ],
         [InlineKeyboardButton(text="Скрыть", callback_data=f"hide:{match_id}")],
     ]
     if username:
@@ -90,6 +95,13 @@ async def send_candidate_notification(
     phone_line = html(phone) if phone else "не найден"
     name_line = f"\nАвтор: {html(sender_name)}" if sender_name else ""
     draft = _reply_draft(search.title)
+    analysis = analyze_match(
+        message.text,
+        [keyword.value for keyword in search.keywords],
+        [minus_word.value for minus_word in search.minus_words],
+    )
+    keyword_line = html(analysis.keyword or "не определен")
+    reason_line = html(analysis.reason)
 
     await bot.send_message(
         chat_id=user.telegram_user_id,
@@ -102,6 +114,10 @@ async def send_candidate_notification(
             f"Telegram: {telegram_line}\n"
             f"Телефон: {phone_line}"
             f"{name_line}</blockquote>\n\n"
+            "▌ <b>Совпадение</b>\n"
+            f"<blockquote>Оценка: {analysis.score}%\n"
+            f"Ключ: {keyword_line}\n"
+            f"Причина: {reason_line}</blockquote>\n\n"
             "▌ <b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>"
         ),
