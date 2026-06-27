@@ -6,6 +6,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.formatting import DIVIDER, html
+from app.bot.keyboards.inline import button
 from app.db.models import Match, Message, Search, Source, User
 from app.services.filtering import analyze_match
 
@@ -60,18 +61,18 @@ def match_keyboard(
 ) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
         [
-            InlineKeyboardButton(text="Подходит", callback_data=f"feedback:good:{match_id}"),
-            InlineKeyboardButton(text="Не подходит", callback_data=f"feedback:bad:{match_id}"),
+            button(text="Подходит", style="success", callback_data=f"feedback:good:{match_id}"),
+            button(text="Не подходит", style="danger", callback_data=f"feedback:bad:{match_id}"),
         ],
-        [InlineKeyboardButton(text="Скрыть", callback_data=f"hide:{match_id}")],
+        [button(text="Скрыть", style="danger", callback_data=f"hide:{match_id}")],
     ]
     if username:
-        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", url=_private_chat_url(username, draft))])
+        buttons.insert(0, [button(text="Написать в ЛС", style="success", url=_private_chat_url(username, draft))])
     else:
-        buttons.insert(0, [InlineKeyboardButton(text="Написать в ЛС", callback_data=f"reply_draft:{match_id}")])
+        buttons.insert(0, [button(text="Написать в ЛС", style="success", callback_data=f"reply_draft:{match_id}")])
     if url:
         insert_at = 1
-        buttons.insert(insert_at, [InlineKeyboardButton(text="Открыть источник", url=url)])
+        buttons.insert(insert_at, [button(text="Открыть источник", url=url)])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
