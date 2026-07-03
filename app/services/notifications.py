@@ -97,7 +97,7 @@ async def send_candidate_notification(
 
     telegram_line = f"@{username}" if username else "не найден"
     phone_line = phone if phone else "не найден"
-    name_line = f"\nАвтор: <i>{html(sender_name)}</i>" if sender_name else ""
+    name_line = f"\n{text_value('Автор', sender_name)}" if sender_name else ""
     draft = _reply_draft(search.title)
     analysis = analyze_match(
         message.text,

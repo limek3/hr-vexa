@@ -20,7 +20,11 @@ def metric(label: str, value: object) -> str:
 
 
 def text_value(label: str, value: object) -> str:
-    return f"<i>{label}:</i> <i>{html(value)}</i>"
+    return metric(label, value)
+
+
+def step_line(step: int, total: int, title: str) -> str:
+    return f"<i>Шаг {step} из {total}:</i> <b>{html(title)}</b>"
 
 
 def _short_value(value: str, *, limit: int = MAX_VALUE_LENGTH) -> str:
@@ -108,8 +112,7 @@ def source_list(search: Search) -> str:
 
     lines = [
         f"{heading('Источники')}\n"
-        "<b>Поиск</b>\n"
-        f"<i>{html(search.title)}</i>",
+        f"{text_value('Поиск', search.title)}",
     ]
     for index, link in enumerate(search.sources, start=1):
         source = link.source

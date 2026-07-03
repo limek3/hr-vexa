@@ -23,7 +23,7 @@ def _quiet_hours_text(settings: UserSettings) -> str:
         f"{heading('Тихие часы')}\n"
         "\n"
         f"{text_value('Статус', status)}\n"
-        "<i>Время:</i> <b>00:00–07:00</b> <i>по МСК</i>\n\n"
+        f"{text_value('Время', '00:00–07:00 по МСК')}\n\n"
         "<b>Как работает</b>\n"
         "<blockquote>Когда тихие часы включены, Vexa продолжает находить совпадения, "
         "но не присылает уведомления ночью.</blockquote>"
@@ -43,29 +43,29 @@ async def statistics(message: Message, session: AsyncSession) -> None:
 
     user = await get_or_create_user(session, message.from_user)
     stats = await get_user_stats(session, user_id=user.id)
-    top_search = stats.top_search_title if stats.top_search_title else "пока нет данных"
-    top_search_line = (
-        f"<i>Лучший поиск:</i> <i>{top_search}</i> · <b>{stats.top_search_matches}</b>"
+    top_search = (
+        f"{stats.top_search_title} · {stats.top_search_matches}"
         if stats.top_search_title
-        else text_value("Лучший поиск", top_search)
+        else "пока нет данных"
     )
+    top_search_line = text_value("Самый активный поиск", top_search)
 
     await message.answer(
         f"{heading('Статистика')}\n"
         "\n"
         "<b>Сегодня</b>\n"
-        f"{metric('Найдено совпадений', stats.matches_today)}\n"
+        f"{metric('Найдено сегодня', stats.matches_today)}\n"
         f"{top_search_line}\n\n"
         "<b>Поиски</b>\n"
-        f"{metric('Всего', stats.searches_total)}\n"
-        f"{metric('Активных', stats.searches_active)}\n\n"
+        f"{metric('Всего поисков', stats.searches_total)}\n"
+        f"{metric('Включено поисков', stats.searches_active)}\n\n"
         "<b>Источники</b>\n"
-        f"{metric('Всего', stats.sources_total)}\n"
-        f"{metric('Доступных', stats.sources_available)}\n\n"
-        "<b>Разбор</b>\n"
-        f"{metric('Всего совпадений', stats.matches_total)}\n"
-        f"{metric('Сохранено', stats.favorites_total)}\n"
-        f"{metric('Скрыто', stats.hidden_total)}",
+        f"{metric('Всего источников', stats.sources_total)}\n"
+        f"{metric('Доступно источников', stats.sources_available)}\n\n"
+        "<b>Совпадения</b>\n"
+        f"{metric('Найдено за все время', stats.matches_total)}\n"
+        f"{metric('Сохранено в избранное', stats.favorites_total)}\n"
+        f"{metric('Скрыто как шум', stats.hidden_total)}",
         reply_markup=main_menu(),
     )
 
