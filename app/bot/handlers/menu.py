@@ -4,7 +4,7 @@ from aiogram.types import CallbackQuery
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import heading
+from app.bot.formatting import heading, metric, text_value
 from app.bot.keyboards.inline import quiet_hours_actions
 from app.bot.keyboards.labels import HELP, QUIET_HOURS, STATISTICS
 from app.bot.keyboards.menu import main_menu
@@ -22,8 +22,8 @@ def _quiet_hours_text(settings: UserSettings) -> str:
     return (
         f"{heading('Тихие часы')}\n"
         "\n"
-        f"Статус: <i>{status}</i>\n"
-        "Время: <i>00:00–07:00 по МСК</i>\n\n"
+        f"{text_value('Статус', status)}\n"
+        "<i>Время:</i> <b>00:00–07:00</b> <i>по МСК</i>\n\n"
         "<b>Как работает</b>\n"
         "<blockquote>Когда тихие часы включены, Vexa продолжает находить совпадения, "
         "но не присылает уведомления ночью.</blockquote>"
@@ -43,28 +43,29 @@ async def statistics(message: Message, session: AsyncSession) -> None:
 
     user = await get_or_create_user(session, message.from_user)
     stats = await get_user_stats(session, user_id=user.id)
-    top_search = (
-        f"{stats.top_search_title} · {stats.top_search_matches}"
+    top_search = stats.top_search_title if stats.top_search_title else "пока нет данных"
+    top_search_line = (
+        f"<i>Лучший поиск:</i> <i>{top_search}</i> · <b>{stats.top_search_matches}</b>"
         if stats.top_search_title
-        else "пока нет данных"
+        else text_value("Лучший поиск", top_search)
     )
 
     await message.answer(
         f"{heading('Статистика')}\n"
         "\n"
         "<b>Сегодня</b>\n"
-        f"Найдено совпадений: <i>{stats.matches_today}</i>\n"
-        f"Лучший поиск: <i>{top_search}</i>\n\n"
+        f"{metric('Найдено совпадений', stats.matches_today)}\n"
+        f"{top_search_line}\n\n"
         "<b>Поиски</b>\n"
-        f"Всего: <i>{stats.searches_total}</i>\n"
-        f"Активных: <i>{stats.searches_active}</i>\n\n"
+        f"{metric('Всего', stats.searches_total)}\n"
+        f"{metric('Активных', stats.searches_active)}\n\n"
         "<b>Источники</b>\n"
-        f"Всего: <i>{stats.sources_total}</i>\n"
-        f"Доступных: <i>{stats.sources_available}</i>\n\n"
+        f"{metric('Всего', stats.sources_total)}\n"
+        f"{metric('Доступных', stats.sources_available)}\n\n"
         "<b>Разбор</b>\n"
-        f"Всего совпадений: <i>{stats.matches_total}</i>\n"
-        f"Сохранено: <i>{stats.favorites_total}</i>\n"
-        f"Скрыто: <i>{stats.hidden_total}</i>",
+        f"{metric('Всего совпадений', stats.matches_total)}\n"
+        f"{metric('Сохранено', stats.favorites_total)}\n"
+        f"{metric('Скрыто', stats.hidden_total)}",
         reply_markup=main_menu(),
     )
 

@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import heading, html
+from app.bot.formatting import heading, metric, text_value
 from app.bot.keyboards.labels import CANCEL, LEGACY_NEW_SEARCH, NEW_SEARCH, SKIP
 from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
 from app.bot.states.create_search import CreateSearch
@@ -35,7 +35,7 @@ async def create_search_start(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"{heading('Новый поиск')}\n"
         "\n"
-        "<b>Шаг 1 из 4:</b> название\n\n"
+        "<i>Шаг</i> <b>1</b> <i>из</i> <b>4</b>: название\n\n"
         "Напишите короткое название, чтобы потом легко найти поиск в списке.\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>Аренда Москва\nЗаявки на ремонт\nОтзывы о бренде\nТендеры поставки</blockquote>",
@@ -58,7 +58,7 @@ async def set_title(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"{heading('Новый поиск')}\n"
         "\n"
-        "<b>Шаг 2 из 4:</b> ключевые слова\n\n"
+        "<i>Шаг</i> <b>2</b> <i>из</i> <b>4</b>: ключевые слова\n\n"
         "Пишите слова или фразы, которые должны быть в нужном сообщении.\n"
         "Лучше каждую фразу с новой строки.\n\n"
         "<b>Примеры</b>\n"
@@ -83,7 +83,7 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"{heading('Новый поиск')}\n"
         "\n"
-        "<b>Шаг 3 из 4:</b> минус-слова\n\n"
+        "<i>Шаг</i> <b>3</b> <i>из</i> <b>4</b>: минус-слова\n\n"
         "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>реклама\nфраншиза\nобучение\nнеактуально</blockquote>\n\n"
@@ -100,7 +100,7 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"{heading('Новый поиск')}\n"
         "\n"
-        "<b>Шаг 4 из 4:</b> источники\n\n"
+        "<i>Шаг</i> <b>4</b> <i>из</i> <b>4</b>: источники\n\n"
         "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>@vexa_group\nhttps://t.me/vexa_group\nhttps://t.me/+invite</blockquote>\n\n"
@@ -139,10 +139,10 @@ async def set_sources(message: Message, state: FSMContext, session: AsyncSession
     await message.answer(
         f"{heading('Поиск создан')}\n"
         "\n"
-        f"Название: <i>{html(search.title)}</i>\n"
-        f"Ключевых слов: <i>{len(data['keywords'])}</i>\n"
-        f"Минус-слов: <i>{len(data['minus_words'])}</i>\n"
-        f"Источников: <i>{len(sources)}</i>\n\n"
+        f"{text_value('Название', search.title)}\n"
+        f"{metric('Ключевых слов', len(data['keywords']))}\n"
+        f"{metric('Минус-слов', len(data['minus_words']))}\n"
+        f"{metric('Источников', len(sources))}\n\n"
         "<b>Статус</b>\n"
         "<blockquote>Статус источников сначала будет «проверяется». "
         "Когда monitor получит доступ, поиск начнет приносить совпадения.</blockquote>",

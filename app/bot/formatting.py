@@ -15,6 +15,14 @@ def heading(title: str) -> str:
     return f"{HEADING_PAD}━━━━ <b>{title}</b> ━━━━"
 
 
+def metric(label: str, value: object) -> str:
+    return f"<i>{label}:</i> <b>{html(value)}</b>"
+
+
+def text_value(label: str, value: object) -> str:
+    return f"<i>{label}:</i> <i>{html(value)}</i>"
+
+
 def _short_value(value: str, *, limit: int = MAX_VALUE_LENGTH) -> str:
     value = value.strip()
     return f"{value[: limit - 3]}..." if len(value) > limit else value
@@ -48,7 +56,7 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 
 def title_with_status(title: str, status: str) -> str:
-    return f"{heading(title)}\nСтатус: <i>{status}</i>"
+    return f"{heading(title)}\n{text_value('Статус', status)}"
 
 
 def search_card(search: Search, *, index: int | None = None) -> str:
@@ -62,9 +70,9 @@ def search_card(search: Search, *, index: int | None = None) -> str:
         f"{title_with_status(title, status)}\n"
         "\n"
         "<b>Настройка</b>\n"
-        f"Ключи: <i>{len(keywords)}</i>\n"
-        f"Минус-слова: <i>{len(minus_words)}</i>\n"
-        f"Источники: <i>{len(active_sources)}</i>\n\n"
+        f"{metric('Ключи', len(keywords))}\n"
+        f"{metric('Минус-слова', len(minus_words))}\n"
+        f"{metric('Источники', len(active_sources))}\n\n"
         "<b>Ключевые слова</b>\n"
         f"<i>{compact_inline(keywords)}</i>"
     )
@@ -78,8 +86,8 @@ def search_edit_card(search: Search) -> str:
 
     return (
         f"{heading('Настройка поиска')}\n"
-        f"Название: <i>{html(search.title)}</i>\n"
-        f"Статус: <i>{status}</i>\n\n"
+        f"{text_value('Название', search.title)}\n"
+        f"{text_value('Статус', status)}\n\n"
         "Выберите, что нужно изменить.\n\n"
         f"{DIVIDER}\n\n"
         "<b>Ключи</b>\n"
@@ -109,6 +117,6 @@ def source_list(search: Search) -> str:
         lines.append(
             f"<b>{index}. {html(source_title)}</b>\n"
             f"{html(_short_value(source.input_ref))}\n"
-            f"Статус: <i>{source_status_label(source.access_status)}</i>",
+            f"{text_value('Статус', source_status_label(source.access_status))}",
         )
     return "\n\n".join(lines)

@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import compact_values, heading, search_card, search_edit_card, source_list
+from app.bot.formatting import compact_values, heading, metric, search_card, search_edit_card, source_list
 from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions, searches_list_actions
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
@@ -34,8 +34,8 @@ def _searches_list_text(count: int) -> str:
         "\n"
         "Ниже последние поиски.\n"
         "Нажмите на нужный поиск, чтобы открыть настройки, источники и управление.\n\n"
-        f"Всего поисков: <i>{count}</i>\n"
-        "Показываю: <i>до 10</i>"
+        f"{metric('Всего поисков', count)}\n"
+        "<i>Показываю:</i> <i>до</i> <b>10</b>"
     )
 
 

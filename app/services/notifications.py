@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.bot.formatting import heading, html
+from app.bot.formatting import heading, html, metric, text_value
 from app.bot.keyboards.inline import button
 from app.db.models import Match, Message, Search, Source, User
 from app.services.filtering import analyze_match
@@ -95,8 +95,8 @@ async def send_candidate_notification(
     username = sender_username or _first_username(text)
     phone = _clean_phone(sender_phone) or _first_phone(text)
 
-    telegram_line = f"@{html(username)}" if username else "не найден"
-    phone_line = html(phone) if phone else "не найден"
+    telegram_line = f"@{username}" if username else "не найден"
+    phone_line = phone if phone else "не найден"
     name_line = f"\nАвтор: <i>{html(sender_name)}</i>" if sender_name else ""
     draft = _reply_draft(search.title)
     analysis = analyze_match(
@@ -104,7 +104,7 @@ async def send_candidate_notification(
         [keyword.value for keyword in search.keywords],
         [minus_word.value for minus_word in search.minus_words],
     )
-    keyword_line = html(analysis.keyword or "не определен")
+    keyword_line = analysis.keyword or "не определен"
     reason_line = html(analysis.reason)
 
     await bot.send_message(
@@ -113,13 +113,13 @@ async def send_candidate_notification(
             f"{heading('Новое совпадение')}\n"
             "\n"
             "<b>Совпадение</b>\n"
-            f"Поиск: <i>{html(search.title)}</i>\n"
-            f"Источник: <i>{html(source.title or source.input_ref)}</i>\n"
-            f"Ключ: <i>{keyword_line}</i>\n"
-            f"Оценка: <i>{analysis.score}%</i>\n\n"
+            f"{text_value('Поиск', search.title)}\n"
+            f"{text_value('Источник', source.title or source.input_ref)}\n"
+            f"{text_value('Ключ', keyword_line)}\n"
+            f"{metric('Оценка', f'{analysis.score}%')}\n\n"
             "<b>Контакты</b>\n"
-            f"Telegram: <i>{telegram_line}</i>\n"
-            f"Телефон: <i>{phone_line}</i>"
+            f"{text_value('Telegram', telegram_line)}\n"
+            f"{text_value('Телефон', phone_line)}"
             f"{name_line}\n\n"
             "<b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
