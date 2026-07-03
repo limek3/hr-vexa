@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-DIVIDER = "━━━━━━━━━━━━━━"
+from app.bot.formatting import heading
 
 
 FORBIDDEN_SEARCH_TERMS = {
@@ -190,10 +190,10 @@ def forbidden_terms_message(found: list[str]) -> str:
     visible = ", ".join(found[:8])
     suffix = "..." if len(found) > 8 else ""
     return (
-        "▌ <b>По этим словам поиск запрещен</b>\n"
-        f"{DIVIDER}\n\n"
+        f"{heading('Поиск запрещен')}\n"
+        "\n"
         "Vexa нельзя использовать для поиска запрещенных тем: наркотики, порно, "
         "терроризм, оружие, мошенничество, взлом и другие незаконные направления.\n\n"
-        "▌ <b>Найдено в запросе</b>\n"
-        f"<blockquote>{visible}{suffix}</blockquote>"
+        "<b>Найдено в запросе</b>\n"
+        f"<i>{visible}{suffix}</i>"
     )

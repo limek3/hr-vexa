@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.bot.formatting import DIVIDER, html
+from app.bot.formatting import heading, html
 from app.bot.keyboards.inline import button
 from app.db.models import Match, Message, Search, Source, User
 from app.services.filtering import analyze_match
@@ -58,7 +58,7 @@ def match_keyboard(
     url: str | None,
     username: str | None,
     draft: str,
-    ) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
         [
             button(text="Подходит", style="success", callback_data=f"feedback:good:{match_id}"),
@@ -97,7 +97,7 @@ async def send_candidate_notification(
 
     telegram_line = f"@{html(username)}" if username else "не найден"
     phone_line = html(phone) if phone else "не найден"
-    name_line = f"\nАвтор: {html(sender_name)}" if sender_name else ""
+    name_line = f"\nАвтор: <i>{html(sender_name)}</i>" if sender_name else ""
     draft = _reply_draft(search.title)
     analysis = analyze_match(
         message.text,
@@ -110,21 +110,21 @@ async def send_candidate_notification(
     await bot.send_message(
         chat_id=user.telegram_user_id,
         text=(
-            "▌ <b>Новое совпадение</b>\n"
-            f"{DIVIDER}\n\n"
-            "▌ <b>Совпадение</b>\n"
-            f"<blockquote>Поиск: {html(search.title)}\n"
-            f"Источник: {html(source.title or source.input_ref)}\n"
-            f"Ключ: {keyword_line}\n"
-            f"Оценка: {analysis.score}%</blockquote>\n\n"
-            "▌ <b>Контакты</b>\n"
-            f"<blockquote>Telegram: {telegram_line}\n"
-            f"Телефон: {phone_line}"
-            f"{name_line}</blockquote>\n\n"
-            "▌ <b>Сообщение</b>\n"
+            f"{heading('Новое совпадение')}\n"
+            "\n"
+            "<b>Совпадение</b>\n"
+            f"Поиск: <i>{html(search.title)}</i>\n"
+            f"Источник: <i>{html(source.title or source.input_ref)}</i>\n"
+            f"Ключ: <i>{keyword_line}</i>\n"
+            f"Оценка: <i>{analysis.score}%</i>\n\n"
+            "<b>Контакты</b>\n"
+            f"Telegram: <i>{telegram_line}</i>\n"
+            f"Телефон: <i>{phone_line}</i>"
+            f"{name_line}\n\n"
+            "<b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
-            "▌ <b>Почему найдено</b>\n"
-            f"<blockquote>{reason_line}</blockquote>"
+            "<b>Почему найдено</b>\n"
+            f"<i>{reason_line}</i>"
         ),
         reply_markup=match_keyboard(match.id, message.url, username, draft),
         parse_mode=ParseMode.HTML,

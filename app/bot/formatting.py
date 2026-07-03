@@ -2,12 +2,17 @@ from html import escape
 
 from app.db.models import Search
 
-DIVIDER = "──────────────"
+DIVIDER = "━━━━━━━━━━━━"
+HEADING_PAD = "\u00a0\u00a0\u00a0"
 MAX_VALUE_LENGTH = 34
 
 
 def html(value: object) -> str:
     return escape(str(value), quote=False)
+
+
+def heading(title: str) -> str:
+    return f"{HEADING_PAD}━━━━ <b>{title}</b> ━━━━"
 
 
 def _short_value(value: str, *, limit: int = MAX_VALUE_LENGTH) -> str:
@@ -43,7 +48,7 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 
 def title_with_status(title: str, status: str) -> str:
-    return f"▌ <b>{title}</b>\nСтатус: <b>{status}</b>"
+    return f"{heading(title)}\nСтатус: <i>{status}</i>"
 
 
 def search_card(search: Search, *, index: int | None = None) -> str:
@@ -55,13 +60,13 @@ def search_card(search: Search, *, index: int | None = None) -> str:
 
     return (
         f"{title_with_status(title, status)}\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Настройка</b>\n"
-        f"<blockquote>Ключи: {len(keywords)}\n"
-        f"Минус-слова: {len(minus_words)}\n"
-        f"Источники: {len(active_sources)}</blockquote>\n\n"
-        "▌ <b>Ключевые слова</b>\n"
-        f"<blockquote>{compact_inline(keywords)}</blockquote>"
+        "\n"
+        "<b>Настройка</b>\n"
+        f"Ключи: <i>{len(keywords)}</i>\n"
+        f"Минус-слова: <i>{len(minus_words)}</i>\n"
+        f"Источники: <i>{len(active_sources)}</i>\n\n"
+        "<b>Ключевые слова</b>\n"
+        f"<i>{compact_inline(keywords)}</i>"
     )
 
 
@@ -72,41 +77,38 @@ def search_edit_card(search: Search) -> str:
     status = "включен" if search.is_active else "на паузе"
 
     return (
-        f"▌ <b>Настройка поиска</b>\n"
-        f"{DIVIDER}\n\n"
-        f"<blockquote>Название: {html(search.title)}\n"
-        f"Статус: {status}</blockquote>\n\n"
+        f"{heading('Настройка поиска')}\n"
+        f"Название: <i>{html(search.title)}</i>\n"
+        f"Статус: <i>{status}</i>\n\n"
         "Выберите, что нужно изменить.\n\n"
         f"{DIVIDER}\n\n"
-        "▌ <b>Ключи</b>\n"
-        f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n\n"
-        "▌ <b>Минус</b>\n"
-        f"<blockquote>{compact_values(minus_words, limit=8)}</blockquote>\n\n"
-        "▌ <b>Источники</b>\n"
-        f"<blockquote>{compact_values(sources, limit=8)}</blockquote>"
+        "<b>Ключи</b>\n"
+        f"<i>{compact_values(keywords, limit=8)}</i>\n\n"
+        "<b>Минус</b>\n"
+        f"<i>{compact_values(minus_words, limit=8)}</i>\n\n"
+        "<b>Источники</b>\n"
+        f"<i>{compact_values(sources, limit=8)}</i>"
     )
 
 
 def source_list(search: Search) -> str:
     if not search.sources:
         return (
-            "▌ <b>Источники</b>\n"
-            f"{DIVIDER}\n\n"
-            "<blockquote>Источники не добавлены.</blockquote>"
+            f"{heading('Источники')}\n"
+            "<i>Источники не добавлены.</i>"
         )
 
     lines = [
-        f"▌ <b>Источники</b>\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Поиск</b>\n"
-        f"<blockquote>{html(search.title)}</blockquote>",
+        f"{heading('Источники')}\n"
+        "<b>Поиск</b>\n"
+        f"<i>{html(search.title)}</i>",
     ]
     for index, link in enumerate(search.sources, start=1):
         source = link.source
         source_title = _short_value(source.title or source.input_ref)
         lines.append(
-            f"▌ <b>{index}. {html(source_title)}</b>\n"
-            f"<blockquote>{html(_short_value(source.input_ref))}\n"
-            f"Статус: {source_status_label(source.access_status)}</blockquote>",
+            f"<b>{index}. {html(source_title)}</b>\n"
+            f"{html(_short_value(source.input_ref))}\n"
+            f"Статус: <i>{source_status_label(source.access_status)}</i>",
         )
     return "\n\n".join(lines)

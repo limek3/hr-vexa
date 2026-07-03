@@ -4,7 +4,7 @@ from aiogram.types import CallbackQuery
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import DIVIDER, html
+from app.bot.formatting import heading, html
 from app.db.models import Match, Message as DbMessage, Search
 from app.db.repositories.favorites import save_favorite_once
 from app.db.repositories.messages import hide_match, save_match_feedback
@@ -121,8 +121,8 @@ async def show_reply_draft(callback: CallbackQuery, session: AsyncSession) -> No
 
     if callback.message:
         await callback.message.answer(
-            "▌ <b>Сообщение для ответа</b>\n"
-            f"{DIVIDER}\n\n"
+            f"{heading('Сообщение для ответа')}\n"
+            "\n"
             f"<blockquote>{html(draft)}</blockquote>\n\n"
             "Скопируйте текст и отправьте его адресату.",
             parse_mode=ParseMode.HTML,

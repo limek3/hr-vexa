@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import DIVIDER, compact_values, search_card, search_edit_card, source_list
+from app.bot.formatting import compact_values, heading, search_card, search_edit_card, source_list
 from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions, searches_list_actions
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
@@ -30,12 +30,12 @@ router = Router()
 
 def _searches_list_text(count: int) -> str:
     return (
-        "▌ <b>Мои поиски</b>\n"
-        f"{DIVIDER}\n\n"
+        f"{heading('Мои поиски')}\n"
+        "\n"
         "Ниже последние поиски.\n"
         "Нажмите на нужный поиск, чтобы открыть настройки, источники и управление.\n\n"
-        f"<blockquote>Всего поисков: {count}\n"
-        "Показываю последние: до 10</blockquote>"
+        f"Всего поисков: <i>{count}</i>\n"
+        "Показываю: <i>до 10</i>"
     )
 
 
@@ -121,8 +121,8 @@ async def cancel_edit_search(
         await _edit_saved_card(message, data, session, user_id=user.id, search_id=search_id)
         return
     await message.answer(
-        "▌ <b>Редактирование отменено</b>\n"
-        f"{DIVIDER}",
+        f"{heading('Редактирование отменено')}\n"
+        "",
         reply_markup=main_menu(),
     )
 
@@ -142,8 +142,8 @@ async def save_search_title(message: Message, state: FSMContext, session: AsyncS
                 message,
                 data,
                 text=(
-                    "▌ <b>Новое название поиска</b>\n"
-                    f"{DIVIDER}\n\n"
+                    f"{heading('Новое название поиска')}\n"
+                    "\n"
                     "Название слишком короткое. Напишите минимум 2 символа."
                 ),
                 search_id=search_id,
@@ -177,8 +177,8 @@ async def save_search_keywords(message: Message, state: FSMContext, session: Asy
                 message,
                 data,
                 text=(
-                    "▌ <b>Новые ключевые слова</b>\n"
-                    f"{DIVIDER}\n\n"
+                    f"{heading('Новые ключевые слова')}\n"
+                    "\n"
                     "Нужно хотя бы одно ключевое слово. Отправьте список заново."
                 ),
                 search_id=search_id,
@@ -254,8 +254,8 @@ async def save_search_sources(message: Message, state: FSMContext, session: Asyn
                 message,
                 data,
                 text=(
-                    "▌ <b>Новые источники</b>\n"
-                    f"{DIVIDER}\n\n"
+                    f"{heading('Новые источники')}\n"
+                    "\n"
                     "Не вижу источников. Отправьте @username или ссылки t.me, "
                     "каждую с новой строки."
                 ),
@@ -284,8 +284,8 @@ async def my_searches(message: Message, session: AsyncSession) -> None:
     searches = await list_user_searches(session, user.id)
     if not searches:
         await message.answer(
-            "▌ <b>Поисков пока нет</b>\n"
-            f"{DIVIDER}\n\n"
+            f"{heading('Поисков пока нет')}\n"
+            "\n"
             "Нажмите <b>Новый поиск</b>, чтобы создать первый мониторинг.",
             reply_markup=main_menu(),
         )
@@ -412,7 +412,7 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "▌ <b>Новое название поиска</b>\n"
+                f"{heading('Новое название поиска')}\n"
                 "<blockquote>Например: Аренда Москва</blockquote>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
@@ -431,11 +431,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "▌ <b>Новые ключевые слова</b>\n"
+                f"{heading('Новые ключевые слова')}\n"
                 "Отправьте полный новый список. "
                 "Каждое слово или фразу лучше писать с новой строки.\n\n"
-                "▌ <b>Сейчас</b>\n"
-                f"<blockquote>{compact_values(current)}</blockquote>",
+                "<b>Сейчас</b>\n"
+                f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -453,11 +453,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "▌ <b>Новые минус-слова</b>\n"
+                f"{heading('Новые минус-слова')}\n"
                 "Отправьте полный новый список. "
                 "Чтобы очистить минус-слова, отправьте один символ: <code>-</code>.\n\n"
-                "▌ <b>Сейчас</b>\n"
-                f"<blockquote>{compact_values(current)}</blockquote>",
+                "<b>Сейчас</b>\n"
+                f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -475,11 +475,11 @@ async def handle_search_action(
             )
             await callback.message.edit_text(
                 f"{search_card(search)}\n\n"
-                "▌ <b>Новые источники</b>\n"
+                f"{heading('Новые источники')}\n"
                 "Отправьте полный новый список каналов или групп, "
                 "каждый источник с новой строки.\n\n"
-                "▌ <b>Сейчас</b>\n"
-                f"<blockquote>{compact_values(current)}</blockquote>",
+                "<b>Сейчас</b>\n"
+                f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),
                 disable_web_page_preview=True,
             )
@@ -492,16 +492,16 @@ async def handle_search_action(
             searches = await list_user_searches(session, user.id)
             if searches:
                 await callback.message.edit_text(
-                    "▌ <b>Поиск удален</b>\n"
-                    f"{DIVIDER}\n\n"
+                    f"{heading('Поиск удален')}\n"
+                    "\n"
                     "Ниже обновленный список.",
                     reply_markup=searches_list_actions(searches),
                     disable_web_page_preview=True,
                 )
             else:
                 await callback.message.edit_text(
-                    "▌ <b>Поиск удален</b>\n"
-                    f"{DIVIDER}\n\n"
+                    f"{heading('Поиск удален')}\n"
+                    "\n"
                     "Поисков больше нет. Чтобы создать новый, нажмите <b>Новый поиск</b> в меню.",
                     disable_web_page_preview=True,
                 )

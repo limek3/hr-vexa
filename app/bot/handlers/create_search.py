@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.formatting import DIVIDER, html
+from app.bot.formatting import heading, html
 from app.bot.keyboards.labels import CANCEL, LEGACY_NEW_SEARCH, NEW_SEARCH, SKIP
 from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
 from app.bot.states.create_search import CreateSearch
@@ -21,8 +21,8 @@ router = Router()
 async def cancel_create_search(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(
-        "▌ <b>Создание поиска отменено</b>\n"
-        f"{DIVIDER}\n\n"
+        f"{heading('Создание поиска отменено')}\n"
+        "\n"
         "Вы можете начать заново в любой момент.",
         reply_markup=main_menu(),
     )
@@ -33,11 +33,11 @@ async def create_search_start(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(CreateSearch.title)
     await message.answer(
-        "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Шаг 1 из 4:</b> название\n\n"
+        f"{heading('Новый поиск')}\n"
+        "\n"
+        "<b>Шаг 1 из 4:</b> название\n\n"
         "Напишите короткое название, чтобы потом легко найти поиск в списке.\n\n"
-        "▌ <b>Примеры</b>\n"
+        "<b>Примеры</b>\n"
         "<blockquote>Аренда Москва\nЗаявки на ремонт\nОтзывы о бренде\nТендеры поставки</blockquote>",
         reply_markup=cancel_menu(),
     )
@@ -56,12 +56,12 @@ async def set_title(message: Message, state: FSMContext) -> None:
     await state.update_data(title=title)
     await state.set_state(CreateSearch.keywords)
     await message.answer(
-        "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Шаг 2 из 4:</b> ключевые слова\n\n"
+        f"{heading('Новый поиск')}\n"
+        "\n"
+        "<b>Шаг 2 из 4:</b> ключевые слова\n\n"
         "Пишите слова или фразы, которые должны быть в нужном сообщении.\n"
         "Лучше каждую фразу с новой строки.\n\n"
-        "▌ <b>Примеры</b>\n"
+        "<b>Примеры</b>\n"
         "<blockquote>сдам квартиру\nнужен ремонт\nищу поставщика\nотзыв vexa\nкурьер</blockquote>",
         reply_markup=cancel_menu(),
     )
@@ -81,11 +81,11 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
     await state.update_data(keywords=keywords)
     await state.set_state(CreateSearch.minus_words)
     await message.answer(
-        "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Шаг 3 из 4:</b> минус-слова\n\n"
+        f"{heading('Новый поиск')}\n"
+        "\n"
+        "<b>Шаг 3 из 4:</b> минус-слова\n\n"
         "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
-        "▌ <b>Примеры</b>\n"
+        "<b>Примеры</b>\n"
         "<blockquote>реклама\nфраншиза\nобучение\nнеактуально</blockquote>\n\n"
         "Если минус-слова не нужны, нажмите <b>Пропустить</b>.",
         reply_markup=skip_menu(),
@@ -98,11 +98,11 @@ async def set_minus_words(message: Message, state: FSMContext) -> None:
     await state.update_data(minus_words=minus_words)
     await state.set_state(CreateSearch.sources)
     await message.answer(
-        "▌ <b>Новый поиск</b>\n"
-        f"{DIVIDER}\n\n"
-        "▌ <b>Шаг 4 из 4:</b> источники\n\n"
+        f"{heading('Новый поиск')}\n"
+        "\n"
+        "<b>Шаг 4 из 4:</b> источники\n\n"
         "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
-        "▌ <b>Примеры</b>\n"
+        "<b>Примеры</b>\n"
         "<blockquote>@vexa_group\nhttps://t.me/vexa_group\nhttps://t.me/+invite</blockquote>\n\n"
         "Vexa проверит доступ и начнет слушать новые посты, сообщения и комментарии.",
         reply_markup=cancel_menu(),
@@ -137,13 +137,13 @@ async def set_sources(message: Message, state: FSMContext, session: AsyncSession
     await state.clear()
 
     await message.answer(
-        "▌ <b>Поиск создан</b>\n"
-        f"{DIVIDER}\n\n"
-        f"<b>Название:</b> {html(search.title)}\n"
-        f"<b>Ключевых слов:</b> {len(data['keywords'])}\n"
-        f"<b>Минус-слов:</b> {len(data['minus_words'])}\n"
-        f"<b>Источников:</b> {len(sources)}\n\n"
-        "▌ <b>Статус</b>\n"
+        f"{heading('Поиск создан')}\n"
+        "\n"
+        f"Название: <i>{html(search.title)}</i>\n"
+        f"Ключевых слов: <i>{len(data['keywords'])}</i>\n"
+        f"Минус-слов: <i>{len(data['minus_words'])}</i>\n"
+        f"Источников: <i>{len(sources)}</i>\n\n"
+        "<b>Статус</b>\n"
         "<blockquote>Статус источников сначала будет «проверяется». "
         "Когда monitor получит доступ, поиск начнет приносить совпадения.</blockquote>",
         reply_markup=main_menu(),
