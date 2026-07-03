@@ -123,8 +123,8 @@ async def send_candidate_notification(
             f"{name_line}\n\n"
             "<b>Сообщение</b>\n"
             f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
-            "<b>Почему найдено</b>\n"
-            f"<i>{reason_line}</i>"
+            "<b>⚠️ Почему найдено</b>\n"
+            f"{reason_line}"
         ),
         reply_markup=match_keyboard(match.id, message.url, username, draft),
         parse_mode=ParseMode.HTML,
