@@ -24,7 +24,7 @@ def text_value(label: str, value: object) -> str:
 
 
 def step_line(step: int, total: int, title: str) -> str:
-    return f"<i>Шаг {step} из {total}:</i> <b>{html(title)}</b>"
+    return f"<b>Шаг {step} из {total}: {html(title)}</b>"
 
 
 def _short_value(value: str, *, limit: int = MAX_VALUE_LENGTH) -> str:
@@ -60,12 +60,12 @@ def compact_inline(values: list[str], *, limit: int = 4) -> str:
 
 
 def title_with_status(title: str, status: str) -> str:
-    return f"{heading(title)}\n{text_value('Статус', status)}"
+    return f"{heading(title)}\n\n{text_value('Статус', status)}"
 
 
 def search_card(search: Search, *, index: int | None = None) -> str:
     title = f"{index}. {html(search.title)}" if index is not None else html(search.title)
-    status = "включен" if search.is_active else "на паузе"
+    status = "включен" if search.is_active else "выключен"
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     active_sources = [link for link in search.sources if link.is_active]
@@ -86,10 +86,10 @@ def search_edit_card(search: Search) -> str:
     keywords = [item.value for item in search.keywords]
     minus_words = [item.value for item in search.minus_words]
     sources = [link.source.input_ref for link in search.sources]
-    status = "включен" if search.is_active else "на паузе"
+    status = "включен" if search.is_active else "выключен"
 
     return (
-        f"{heading('Настройка поиска')}\n"
+        f"{heading('Настройка поиска')}\n\n"
         f"{text_value('Название', search.title)}\n"
         f"{text_value('Статус', status)}\n\n"
         "Выберите, что нужно изменить.\n\n"
@@ -111,7 +111,7 @@ def source_list(search: Search) -> str:
         )
 
     lines = [
-        f"{heading('Источники')}\n"
+        f"{heading('Источники')}\n\n"
         f"{text_value('Поиск', search.title)}",
     ]
     for index, link in enumerate(search.sources, start=1):

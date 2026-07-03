@@ -37,7 +37,8 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
 def searches_list_actions(searches: list[Search]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for index, search in enumerate(searches[:10], start=1):
-        status = "вкл" if search.is_active else "пауза"
+        status = "вкл" if search.is_active else "выкл"
+        style = "success" if search.is_active else "danger"
         title = search.title.strip()
         if len(title) > 28:
             title = f"{title[:25]}..."
@@ -45,6 +46,7 @@ def searches_list_actions(searches: list[Search]) -> InlineKeyboardMarkup:
             [
                 button(
                     text=f"{index}. {title} · {status}",
+                    style=style,
                     callback_data=f"search:open:{search.id}",
                 ),
             ],
