@@ -1,5 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.db.models import Search
+
 
 def button(text: str, *, style: str = "primary", **kwargs: object) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=text, style=style, **kwargs)
@@ -11,6 +13,7 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
     toggle_style = "danger" if is_active else "success"
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [button(text="К списку поисков", callback_data=f"search:list:{search_id}")],
             [
                 button(
                     text=toggle_text,
@@ -29,6 +32,24 @@ def search_actions(search_id: int, is_active: bool) -> InlineKeyboardMarkup:
             ],
         ],
     )
+
+
+def searches_list_actions(searches: list[Search]) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for index, search in enumerate(searches[:10], start=1):
+        status = "вкл" if search.is_active else "пауза"
+        title = search.title.strip()
+        if len(title) > 28:
+            title = f"{title[:25]}..."
+        rows.append(
+            [
+                button(
+                    text=f"{index}. {title} · {status}",
+                    callback_data=f"search:open:{search.id}",
+                ),
+            ],
+        )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def search_edit_actions(search_id: int) -> InlineKeyboardMarkup:

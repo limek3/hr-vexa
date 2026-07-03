@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.formatting import DIVIDER, compact_values, search_card, search_edit_card, source_list
-from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions
+from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions, searches_list_actions
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
 from app.bot.states.edit_search import EditSearch
@@ -26,6 +26,17 @@ from app.utils.links import split_sources
 from app.utils.text import split_terms
 
 router = Router()
+
+
+def _searches_list_text(count: int) -> str:
+    return (
+        "▌ <b>Мои поиски</b>\n"
+        f"{DIVIDER}\n\n"
+        "Ниже последние поиски.\n"
+        "Нажмите на нужный поиск, чтобы открыть настройки, источники и управление.\n\n"
+        f"<blockquote>Всего поисков: {count}\n"
+        "Показываю последние: до 10</blockquote>"
+    )
 
 
 async def _delete_user_input(message: Message) -> None:
@@ -281,18 +292,9 @@ async def my_searches(message: Message, session: AsyncSession) -> None:
         return
 
     await message.answer(
-        "▌ <b>Мои поиски</b>\n"
-        f"{DIVIDER}\n\n"
-        "Ниже последние поиски.\n"
-        "Каждая карточка управляется своими кнопками.",
-        reply_markup=main_menu(),
+        _searches_list_text(len(searches)),
+        reply_markup=searches_list_actions(searches),
     )
-
-    for index, search in enumerate(searches[:10], start=1):
-        await message.answer(
-            search_card(search, index=index),
-            reply_markup=search_actions(search.id, search.is_active),
-        )
 
 
 def _search_callback(callback_data: str | None) -> tuple[str, int] | None:
@@ -323,6 +325,27 @@ async def handle_search_action(
     search = await get_user_search(session, user_id=user.id, search_id=search_id)
     if not search:
         await callback.answer("Поиск не найден.")
+        return
+
+    if action == "open":
+        if callback.message:
+            await callback.message.edit_text(
+                search_card(search),
+                reply_markup=search_actions(search.id, search.is_active),
+                disable_web_page_preview=True,
+            )
+        await callback.answer()
+        return
+
+    if action == "list":
+        searches = await list_user_searches(session, user.id)
+        if callback.message:
+            await callback.message.edit_text(
+                _searches_list_text(len(searches)),
+                reply_markup=searches_list_actions(searches),
+                disable_web_page_preview=True,
+            )
+        await callback.answer()
         return
 
     if action in {"on", "off"}:
@@ -466,8 +489,20 @@ async def handle_search_action(
     if action == "delete":
         deleted = await delete_user_search(session, user_id=user.id, search_id=search_id)
         if callback.message and deleted:
-            await callback.message.edit_text(
-                "▌ <b>Поиск удален</b>\n"
-                f"{DIVIDER}"
-            )
+            searches = await list_user_searches(session, user.id)
+            if searches:
+                await callback.message.edit_text(
+                    "▌ <b>Поиск удален</b>\n"
+                    f"{DIVIDER}\n\n"
+                    "Ниже обновленный список.",
+                    reply_markup=searches_list_actions(searches),
+                    disable_web_page_preview=True,
+                )
+            else:
+                await callback.message.edit_text(
+                    "▌ <b>Поиск удален</b>\n"
+                    f"{DIVIDER}\n\n"
+                    "Поисков больше нет. Чтобы создать новый, нажмите <b>Новый поиск</b> в меню.",
+                    disable_web_page_preview=True,
+                )
         await callback.answer("Удалено." if deleted else "Не найдено.")

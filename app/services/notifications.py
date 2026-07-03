@@ -58,13 +58,16 @@ def match_keyboard(
     url: str | None,
     username: str | None,
     draft: str,
-) -> InlineKeyboardMarkup:
+    ) -> InlineKeyboardMarkup:
     buttons: list[list[InlineKeyboardButton]] = [
         [
             button(text="Подходит", style="success", callback_data=f"feedback:good:{match_id}"),
             button(text="Не подходит", style="danger", callback_data=f"feedback:bad:{match_id}"),
         ],
-        [button(text="Скрыть", style="danger", callback_data=f"hide:{match_id}")],
+        [
+            button(text="Сохранить", callback_data=f"favorite:{match_id}"),
+            button(text="Скрыть", style="danger", callback_data=f"hide:{match_id}"),
+        ],
     ]
     if username:
         buttons.insert(0, [button(text="Написать в ЛС", style="success", url=_private_chat_url(username, draft))])
@@ -107,20 +110,21 @@ async def send_candidate_notification(
     await bot.send_message(
         chat_id=user.telegram_user_id,
         text=(
-            "▌ <b>Найдено совпадение</b>\n"
+            "▌ <b>Новое совпадение</b>\n"
             f"{DIVIDER}\n\n"
-            "▌ <b>Данные</b>\n"
+            "▌ <b>Совпадение</b>\n"
             f"<blockquote>Поиск: {html(search.title)}\n"
             f"Источник: {html(source.title or source.input_ref)}\n"
-            f"Telegram: {telegram_line}\n"
+            f"Ключ: {keyword_line}\n"
+            f"Оценка: {analysis.score}%</blockquote>\n\n"
+            "▌ <b>Контакты</b>\n"
+            f"<blockquote>Telegram: {telegram_line}\n"
             f"Телефон: {phone_line}"
             f"{name_line}</blockquote>\n\n"
-            "▌ <b>Совпадение</b>\n"
-            f"<blockquote>Оценка: {analysis.score}%\n"
-            f"Ключ: {keyword_line}\n"
-            f"Причина: {reason_line}</blockquote>\n\n"
             "▌ <b>Сообщение</b>\n"
-            f"<blockquote>{html(text) or 'без текста'}</blockquote>"
+            f"<blockquote>{html(text) or 'без текста'}</blockquote>\n\n"
+            "▌ <b>Почему найдено</b>\n"
+            f"<blockquote>{reason_line}</blockquote>"
         ),
         reply_markup=match_keyboard(match.id, message.url, username, draft),
         parse_mode=ParseMode.HTML,

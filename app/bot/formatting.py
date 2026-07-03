@@ -2,7 +2,7 @@ from html import escape
 
 from app.db.models import Search
 
-DIVIDER = "━━━━━━━━━━━━━━"
+DIVIDER = "──────────────"
 MAX_VALUE_LENGTH = 34
 
 
@@ -56,9 +56,11 @@ def search_card(search: Search, *, index: int | None = None) -> str:
     return (
         f"{title_with_status(title, status)}\n"
         f"{DIVIDER}\n\n"
-        f"Ключи: <b>{len(keywords)}</b> · "
-        f"Источники: <b>{len(active_sources)}</b> · "
-        f"Минус: <b>{len(minus_words)}</b>\n\n"
+        "▌ <b>Настройка</b>\n"
+        f"<blockquote>Ключи: {len(keywords)}\n"
+        f"Минус-слова: {len(minus_words)}\n"
+        f"Источники: {len(active_sources)}</blockquote>\n\n"
+        "▌ <b>Ключевые слова</b>\n"
         f"<blockquote>{compact_inline(keywords)}</blockquote>"
     )
 
@@ -70,7 +72,11 @@ def search_edit_card(search: Search) -> str:
     status = "включен" if search.is_active else "на паузе"
 
     return (
-        f"{title_with_status(html(search.title), status)}\n"
+        f"▌ <b>Настройка поиска</b>\n"
+        f"{DIVIDER}\n\n"
+        f"<blockquote>Название: {html(search.title)}\n"
+        f"Статус: {status}</blockquote>\n\n"
+        "Выберите, что нужно изменить.\n\n"
         f"{DIVIDER}\n\n"
         "▌ <b>Ключи</b>\n"
         f"<blockquote>{compact_values(keywords, limit=8)}</blockquote>\n\n"

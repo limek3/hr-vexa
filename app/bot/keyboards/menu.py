@@ -1,11 +1,12 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
-from app.bot.keyboards.labels import CANCEL, HELP, MY_SEARCHES, NEW_SEARCH, QUIET_HOURS, SKIP
+from app.bot.keyboards.labels import CANCEL, HELP, MY_SEARCHES, NEW_SEARCH, QUIET_HOURS, SKIP, STATISTICS
 
 
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
+            [KeyboardButton(text=STATISTICS)],
             [KeyboardButton(text=NEW_SEARCH), KeyboardButton(text=MY_SEARCHES)],
             [KeyboardButton(text=QUIET_HOURS), KeyboardButton(text=HELP)],
         ],

@@ -6,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.formatting import DIVIDER
 from app.bot.keyboards.inline import quiet_hours_actions
-from app.bot.keyboards.labels import HELP, QUIET_HOURS
+from app.bot.keyboards.labels import HELP, QUIET_HOURS, STATISTICS
 from app.bot.keyboards.menu import main_menu
 from app.bot.messages import HELP_TEXT
 from app.db.models import UserSettings
+from app.db.repositories.stats import get_user_stats
 from app.db.repositories.user_settings import get_or_create_user_settings, toggle_quiet_hours
 from app.db.repositories.users import get_or_create_user
 
@@ -33,6 +34,38 @@ def _quiet_hours_text(settings: UserSettings) -> str:
 @router.message(lambda message: message.text == HELP)
 async def help_message(message: Message) -> None:
     await message.answer(HELP_TEXT, reply_markup=main_menu())
+
+
+@router.message(lambda message: message.text == STATISTICS)
+async def statistics(message: Message, session: AsyncSession) -> None:
+    if not message.from_user:
+        return
+
+    user = await get_or_create_user(session, message.from_user)
+    stats = await get_user_stats(session, user_id=user.id)
+    top_search = (
+        f"{stats.top_search_title} · {stats.top_search_matches}"
+        if stats.top_search_title
+        else "пока нет данных"
+    )
+
+    await message.answer(
+        "▌ <b>Статистика</b>\n"
+        f"{DIVIDER}\n\n"
+        "▌ <b>Сегодня</b>\n"
+        f"<blockquote>Найдено совпадений: {stats.matches_today}\n"
+        f"Лучший поиск: {top_search}</blockquote>\n\n"
+        "▌ <b>Всего</b>\n"
+        f"<blockquote>Поисков: {stats.searches_total}\n"
+        f"Активных: {stats.searches_active}\n"
+        f"Источников: {stats.sources_total}\n"
+        f"Доступных источников: {stats.sources_available}</blockquote>\n\n"
+        "▌ <b>Разбор</b>\n"
+        f"<blockquote>Всего совпадений: {stats.matches_total}\n"
+        f"Сохранено: {stats.favorites_total}\n"
+        f"Скрыто: {stats.hidden_total}</blockquote>",
+        reply_markup=main_menu(),
+    )
 
 
 @router.message(lambda message: message.text == QUIET_HOURS)
