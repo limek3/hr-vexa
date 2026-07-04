@@ -36,8 +36,13 @@ def source_status_label(status: str) -> str:
     labels = {
         "available": "доступен",
         "pending": "проверяется",
+        "queued": "в очереди",
+        "joining": "вступаем",
         "unavailable": "нет доступа",
         "not_found": "не найден",
+        "invite_expired": "ссылка недействительна",
+        "join_limited": "ограничение Telegram",
+        "join_request_sent": "заявка отправлена",
     }
     return labels.get(status, status)
 
@@ -122,4 +127,10 @@ def source_list(search: Search) -> str:
             f"{html(_short_value(source.input_ref))}\n"
             f"{text_value('Статус', source_status_label(source.access_status))}",
         )
+    lines.append(
+        "<b>Подсказка</b>\n"
+        "Публичные источники Vexa пробует подключить сама. Для закрытых источников нужна "
+        "invite-ссылка или добавление аккаунта Vexa админом. Если доступ уже выдали, "
+        "нажмите <b>Проверить источники заново</b>.",
+    )
     return "\n\n".join(lines)

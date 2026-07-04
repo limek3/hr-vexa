@@ -2,7 +2,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import SearchSource, Source
+from app.db.models import Search, SearchSource, Source, User
 
 
 async def list_sources(session: AsyncSession, statuses: set[str] | None = None) -> list[Source]:
@@ -37,6 +37,42 @@ async def mark_source_access(
             access_status=access_status,
         ),
     )
+
+
+async def reset_search_sources_for_recheck(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    search_id: int,
+) -> int:
+    source_ids = (
+        select(SearchSource.source_id)
+        .join(Search, Search.id == SearchSource.search_id)
+        .where(Search.id == search_id, Search.user_id == user_id)
+    )
+    result = await session.execute(
+        update(Source)
+        .where(Source.id.in_(source_ids))
+        .values(access_status="pending")
+        .returning(Source.id),
+    )
+    return len(result.scalars().all())
+
+
+async def list_source_notification_targets(
+    session: AsyncSession,
+    *,
+    source_id: int,
+) -> list[tuple[int, str]]:
+    result = await session.execute(
+        select(User.telegram_user_id, Search.title)
+        .join(Search, Search.user_id == User.id)
+        .join(SearchSource, SearchSource.search_id == Search.id)
+        .where(SearchSource.source_id == source_id)
+        .where(SearchSource.is_active.is_(True))
+        .where(Search.is_active.is_(True)),
+    )
+    return [(telegram_user_id, title) for telegram_user_id, title in result.all()]
 
 
 async def upsert_linked_discussion_source(

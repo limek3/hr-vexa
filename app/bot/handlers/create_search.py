@@ -10,6 +10,7 @@ from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
 from app.bot.states.create_search import CreateSearch
 from app.db.repositories.searches import create_search
 from app.db.repositories.users import get_or_create_user
+from app.services.limits import max_sources_per_search, sources_limit_error
 from app.services.policy import find_forbidden_terms, forbidden_terms_message
 from app.utils.links import split_sources
 from app.utils.text import split_terms
@@ -95,16 +96,22 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
 @router.message(CreateSearch.minus_words)
 async def set_minus_words(message: Message, state: FSMContext) -> None:
     minus_words = [] if message.text == SKIP else split_terms(message.text or "")
+    source_limit = max_sources_per_search()
     await state.update_data(minus_words=minus_words)
     await state.set_state(CreateSearch.sources)
     await message.answer(
         f"{heading('Новый поиск')}\n"
         "\n"
         f"{step_line(4, 4, 'источники')}\n\n"
-        "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n\n"
+        "Отправьте каналы, группы или группы комментариев, каждый источник с новой строки.\n"
+        f"Сейчас можно добавить до <b>{source_limit}</b> источников на один поиск.\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>@vexa_group\nhttps://t.me/vexa_group\nhttps://t.me/+invite</blockquote>\n\n"
-        "Vexa проверит доступ и начнет слушать новые посты, сообщения и комментарии.",
+        "Публичные источники можно отправлять как <code>@username</code> или ссылку. "
+        "Если там есть кнопка «Присоединиться», Vexa попробует вступить сама.\n\n"
+        "Для закрытых источников нужна invite-ссылка <code>https://t.me/+...</code> "
+        "или добавление аккаунта Vexa админом. Если вход через заявку, мониторинг начнется "
+        "после одобрения.",
         reply_markup=cancel_menu(),
         disable_web_page_preview=True,
     )
@@ -115,10 +122,15 @@ async def set_sources(message: Message, state: FSMContext, session: AsyncSession
     sources = split_sources(message.text or "")
     if not sources:
         await message.answer(
-            "Не вижу источников. Отправьте <code>@username</code> или ссылки <code>t.me</code>, "
-            "каждую с новой строки.",
+            "Не вижу источников. Отправьте <code>@username</code>, ссылку <code>https://t.me/...</code> "
+            "или invite-ссылку <code>https://t.me/+...</code>, каждую с новой строки.",
             reply_markup=cancel_menu(),
         )
+        return
+
+    limit_error = sources_limit_error(len(sources))
+    if limit_error:
+        await message.answer(limit_error, reply_markup=cancel_menu())
         return
 
     if not message.from_user:

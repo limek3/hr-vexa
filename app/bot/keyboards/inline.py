@@ -76,6 +76,15 @@ def search_back(search_id: int) -> InlineKeyboardMarkup:
     )
 
 
+def search_sources_actions(search_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [button(text="Проверить источники заново", callback_data=f"search:check_sources:{search_id}")],
+            [button(text="Назад", callback_data=f"search:back:{search_id}")],
+        ],
+    )
+
+
 def edit_cancel(search_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

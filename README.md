@@ -31,6 +31,11 @@ DATABASE_URL=
 TELEGRAM_API_ID=
 TELEGRAM_API_HASH=
 TELEGRAM_SESSION_STRING=
+TELEGRAM_AUTO_JOIN_SOURCES=true
+TELEGRAM_SOURCE_REFRESH_INTERVAL_SECONDS=60
+TELEGRAM_JOIN_DELAY_SECONDS=12
+TELEGRAM_MAX_JOINS_PER_CYCLE=2
+MAX_SOURCES_PER_SEARCH=10
 APP_ENV=production
 LOG_LEVEL=INFO
 ```
@@ -40,6 +45,12 @@ Optional:
 ```env
 BOT_PROXY_URL=
 ```
+
+`TELEGRAM_AUTO_JOIN_SOURCES=true` lets the MTProto monitor join public sources and
+`https://t.me/+...` invite links when the connected Telegram account is allowed to join.
+`TELEGRAM_MAX_JOINS_PER_CYCLE=2` and `TELEGRAM_JOIN_DELAY_SECONDS=12` keep joins in a
+small queue so the account does not try to join many sources at once.
+`MAX_SOURCES_PER_SEARCH=10` keeps one search limited to 10 sources.
 
 Use Supabase Session Pooler for `DATABASE_URL` if direct connection does not work from your network.
 

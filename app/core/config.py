@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     telegram_api_id: int | None = Field(default=None, alias="TELEGRAM_API_ID")
     telegram_api_hash: str = Field(default="", alias="TELEGRAM_API_HASH")
     telegram_session_string: str = Field(default="", alias="TELEGRAM_SESSION_STRING")
+    telegram_auto_join_sources: bool = Field(default=True, alias="TELEGRAM_AUTO_JOIN_SOURCES")
+    telegram_source_refresh_interval_seconds: int = Field(
+        default=60,
+        alias="TELEGRAM_SOURCE_REFRESH_INTERVAL_SECONDS",
+    )
+    telegram_join_delay_seconds: int = Field(default=12, alias="TELEGRAM_JOIN_DELAY_SECONDS")
+    telegram_max_joins_per_cycle: int = Field(default=2, alias="TELEGRAM_MAX_JOINS_PER_CYCLE")
+
+    max_sources_per_search: int = Field(default=10, alias="MAX_SOURCES_PER_SEARCH")
 
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

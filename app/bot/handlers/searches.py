@@ -6,7 +6,13 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.formatting import compact_values, heading, metric, search_card, search_edit_card, source_list
-from app.bot.keyboards.inline import edit_cancel, search_actions, search_back, search_edit_actions, searches_list_actions
+from app.bot.keyboards.inline import (
+    edit_cancel,
+    search_actions,
+    search_edit_actions,
+    search_sources_actions,
+    searches_list_actions,
+)
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
 from app.bot.states.edit_search import EditSearch
@@ -20,7 +26,9 @@ from app.db.repositories.searches import (
     set_search_active,
     update_search_title,
 )
+from app.db.repositories.sources import reset_search_sources_for_recheck
 from app.db.repositories.users import get_or_create_user
+from app.services.limits import max_sources_per_search, sources_limit_error
 from app.services.policy import find_forbidden_terms, forbidden_terms_message
 from app.utils.links import split_sources
 from app.utils.text import split_terms
@@ -146,6 +154,18 @@ async def save_search_title(message: Message, state: FSMContext, session: AsyncS
                     "\n"
                     "Название слишком короткое. Напишите минимум 2 символа."
                 ),
+                search_id=search_id,
+            )
+        return
+
+    limit_error = sources_limit_error(len(sources))
+    if limit_error:
+        await _delete_user_input(message)
+        if isinstance(search_id, int):
+            await _edit_prompt_message(
+                message,
+                data,
+                text=f"{heading('Новые источники')}\n\n{limit_error}",
                 search_id=search_id,
             )
         return
@@ -364,10 +384,29 @@ async def handle_search_action(
         if callback.message:
             await callback.message.edit_text(
                 source_list(search),
-                reply_markup=search_back(search.id),
+                reply_markup=search_sources_actions(search.id),
                 disable_web_page_preview=True,
             )
         await callback.answer()
+        return
+
+    if action == "check_sources":
+        updated = await reset_search_sources_for_recheck(
+            session,
+            user_id=user.id,
+            search_id=search.id,
+        )
+        await session.flush()
+        search = await get_user_search(session, user_id=user.id, search_id=search.id)
+        if callback.message and search:
+            await callback.message.edit_text(
+                source_list(search),
+                reply_markup=search_sources_actions(search.id),
+                disable_web_page_preview=True,
+            )
+        await callback.answer(
+            "Источники поставлены в очередь проверки." if updated else "Источники не найдены.",
+        )
         return
 
     if action == "edit":
@@ -467,6 +506,7 @@ async def handle_search_action(
     if action == "replace_sources":
         await state.set_state(EditSearch.sources)
         current = [link.source.input_ref for link in search.sources]
+        source_limit = max_sources_per_search()
         if callback.message:
             await state.update_data(
                 search_id=search.id,
@@ -477,7 +517,14 @@ async def handle_search_action(
                 f"{search_card(search)}\n\n"
                 f"{heading('Новые источники')}\n"
                 "Отправьте полный новый список каналов или групп, "
-                "каждый источник с новой строки.\n\n"
+                "каждый источник с новой строки.\n"
+                f"Максимум: <b>{source_limit}</b> источников на один поиск.\n\n"
+                "<b>Что можно отправлять</b>\n"
+                "<blockquote>@public_group\n"
+                "https://t.me/public_group\n"
+                "https://t.me/+invite</blockquote>\n"
+                "Публичные источники Vexa попробует открыть сама. Для закрытых нужна "
+                "invite-ссылка или добавление аккаунта Vexa админом.\n\n"
                 "<b>Сейчас</b>\n"
                 f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),
