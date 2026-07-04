@@ -160,6 +160,19 @@ class Match(Base):
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class NotificationDelivery(Base, TimestampMixin):
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (UniqueConstraint("match_id", name="uq_notification_deliveries_match"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class MatchFeedback(Base):
     __tablename__ = "match_feedback"
     __table_args__ = (UniqueConstraint("user_id", "match_id", name="uq_match_feedback_user_match"),)

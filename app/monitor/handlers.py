@@ -8,6 +8,7 @@ from telethon import events
 
 from app.db.models import Message, Source, User
 from app.db.repositories.messages import create_match_once, increment_daily_stats, save_message_if_new
+from app.db.repositories.notification_deliveries import enqueue_notification_once
 from app.db.repositories.searches import list_active_searches_for_source
 from app.db.repositories.sources import get_source_by_telegram_id
 from app.db.repositories.user_settings import notifications_paused_for_user
@@ -81,7 +82,8 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
         message = await session.get(Message, saved_message.id)
         if user and message:
             if await notifications_paused_for_user(session, user_id=user.id):
-                logger.info("Notification skipped by quiet hours: search_id=%s match_id=%s", search.id, match.id)
+                await enqueue_notification_once(session, user_id=user.id, match_id=match.id)
+                logger.info("Notification queued by quiet hours: search_id=%s match_id=%s", search.id, match.id)
                 continue
             await send_candidate_notification(
                 bot,

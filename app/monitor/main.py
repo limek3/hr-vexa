@@ -10,6 +10,7 @@ from app.db.init import init_models
 from app.db.repositories.sources import list_sources, mark_source_access
 from app.db.session import SessionLocal
 from app.monitor.client import build_telegram_client
+from app.monitor.delivery_queue import delivery_queue_loop
 from app.monitor.handlers import handle_new_message
 from app.monitor.source_checker import resolve_source_access
 
@@ -75,6 +76,7 @@ async def main(init_db: bool = True) -> None:
     logger.info("MTProto monitor started as %s", getattr(me, "username", None) or me.id)
     await refresh_sources(client)
     asyncio.create_task(refresh_sources_loop(client))
+    asyncio.create_task(delivery_queue_loop(bot))
     await client.run_until_disconnected()
 
 
