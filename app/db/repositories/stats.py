@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DailyStats, Favorite, Match, Search, SearchSource, Source
+from app.db.models import DailyStats, Favorite, Match, Search, SearchSource, Source, User
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,17 @@ class UserStats:
     hidden_total: int
     top_search_title: str | None
     top_search_matches: int
+
+
+@dataclass(frozen=True)
+class GlobalStats:
+    users_total: int
+    users_blocked: int
+    searches_total: int
+    searches_active: int
+    sources_total: int
+    matches_today: int
+    matches_total: int
 
 
 async def get_user_stats(session: AsyncSession, *, user_id: int) -> UserStats:
@@ -77,4 +88,33 @@ async def get_user_stats(session: AsyncSession, *, user_id: int) -> UserStats:
         hidden_total=int(hidden_total or 0),
         top_search_title=top_row[0] if top_row else None,
         top_search_matches=int(top_row[1]) if top_row else 0,
+    )
+
+
+async def get_global_stats(session: AsyncSession) -> GlobalStats:
+    """Instance-wide numbers for the admin panel (all users, not just one)."""
+    today = datetime.now(UTC).date()
+
+    users_total = await session.scalar(select(func.count(User.id)))
+    users_blocked = await session.scalar(
+        select(func.count(User.id)).where(User.is_blocked.is_(True)),
+    )
+    searches_total = await session.scalar(select(func.count(Search.id)))
+    searches_active = await session.scalar(
+        select(func.count(Search.id)).where(Search.is_active.is_(True)),
+    )
+    sources_total = await session.scalar(select(func.count(Source.id)))
+    matches_today = await session.scalar(
+        select(func.coalesce(func.sum(DailyStats.matches_count), 0)).where(DailyStats.date == today),
+    )
+    matches_total = await session.scalar(select(func.count(Match.id)))
+
+    return GlobalStats(
+        users_total=int(users_total or 0),
+        users_blocked=int(users_blocked or 0),
+        searches_total=int(searches_total or 0),
+        searches_active=int(searches_active or 0),
+        sources_total=int(sources_total or 0),
+        matches_today=int(matches_today or 0),
+        matches_total=int(matches_total or 0),
     )

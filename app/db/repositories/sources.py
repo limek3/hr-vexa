@@ -1,8 +1,19 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Search, SearchSource, Source, User
+
+
+@dataclass(slots=True)
+class SourceNotificationTarget:
+    user_id: int
+    telegram_user_id: int
+    username: str | None
+    first_name: str | None
+    search_title: str
 
 
 async def list_sources(session: AsyncSession, statuses: set[str] | None = None) -> list[Source]:
@@ -63,16 +74,26 @@ async def list_source_notification_targets(
     session: AsyncSession,
     *,
     source_id: int,
-) -> list[tuple[int, str]]:
+) -> list[SourceNotificationTarget]:
     result = await session.execute(
-        select(User.telegram_user_id, Search.title)
+        select(User.id, User.telegram_user_id, User.username, User.first_name, Search.title)
         .join(Search, Search.user_id == User.id)
         .join(SearchSource, SearchSource.search_id == Search.id)
         .where(SearchSource.source_id == source_id)
         .where(SearchSource.is_active.is_(True))
-        .where(Search.is_active.is_(True)),
+        .where(Search.is_active.is_(True))
+        .where(User.is_blocked.is_(False)),
     )
-    return [(telegram_user_id, title) for telegram_user_id, title in result.all()]
+    return [
+        SourceNotificationTarget(
+            user_id=user_id,
+            telegram_user_id=telegram_user_id,
+            username=username,
+            first_name=first_name,
+            search_title=title,
+        )
+        for user_id, telegram_user_id, username, first_name, title in result.all()
+    ]
 
 
 async def upsert_linked_discussion_source(

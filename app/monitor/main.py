@@ -2,23 +2,28 @@ import asyncio
 import logging
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
+from sqlalchemy import select
 from telethon import TelegramClient, events
 
-from app.bot.formatting import heading, html, source_status_label, text_value
+from app.bot.formatting import heading, html, metric, source_status_label, text_value
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.init import init_models
-from app.db.models import Source
+from app.db.models import Source, User
 from app.db.repositories.sources import (
     list_source_notification_targets,
     list_sources,
     mark_source_access,
 )
+from app.db.repositories.users import count_blocked_users
 from app.db.session import SessionLocal
 from app.monitor.client import build_telegram_client
-from app.monitor.delivery_queue import delivery_queue_loop
+from app.monitor.delivery_queue import cleanup_deliveries_loop, delivery_queue_loop
 from app.monitor.handlers import handle_new_message
 from app.monitor.source_checker import resolve_source_access
+from app.services.notifications import MAX_RETRY_AFTER_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -56,21 +61,80 @@ async def notify_source_problem(
     source_title = source.title or source.input_ref
     status_label = source_status_label(access_status)
     hint = _source_problem_hint(access_status)
-    for telegram_user_id, search_title in targets:
-        try:
-            await bot.send_message(
-                chat_id=telegram_user_id,
-                text=(
-                    f"{heading('Проблема с источником')}\n\n"
-                    f"{text_value('Поиск', search_title)}\n"
-                    f"{text_value('Источник', source_title)}\n"
-                    f"{text_value('Статус', status_label)}\n\n"
-                    f"<blockquote>{html(hint)}</blockquote>"
-                ),
-                disable_web_page_preview=True,
-            )
-        except Exception:
-            logger.exception("Source problem notification failed: source_id=%s", source.id)
+    for target in targets:
+        for attempt in (1, 2):
+            try:
+                await bot.send_message(
+                    chat_id=target.telegram_user_id,
+                    text=(
+                        f"{heading('Проблема с источником')}\n\n"
+                        f"{text_value('Поиск', target.search_title)}\n"
+                        f"{text_value('Источник', source_title)}\n"
+                        f"{text_value('Статус', status_label)}\n\n"
+                        f"<blockquote>{html(hint)}</blockquote>"
+                    ),
+                    disable_web_page_preview=True,
+                )
+                break
+            except TelegramRetryAfter as exc:
+                if attempt == 2:
+                    logger.warning(
+                        "Source problem notification failed after flood-control wait: user_id=%s "
+                        "telegram_user_id=%s source_id=%s retry_after=%s",
+                        target.user_id,
+                        target.telegram_user_id,
+                        source.id,
+                        exc.retry_after,
+                    )
+                    break
+                await asyncio.sleep(min(exc.retry_after, MAX_RETRY_AFTER_SECONDS))
+                continue
+            except TelegramForbiddenError:
+                user = await session.scalar(select(User).where(User.id == target.user_id))
+                if user:
+                    user.is_blocked = True
+                    await session.flush()
+                logger.warning(
+                    "Source problem notification blocked, bot was blocked by user: user_id=%s "
+                    "telegram_user_id=%s username=%s first_name=%s source_id=%s status=%s",
+                    target.user_id,
+                    target.telegram_user_id,
+                    target.username,
+                    target.first_name,
+                    source.id,
+                    access_status,
+                )
+                break
+            except TelegramBadRequest as exc:
+                if "chat not found" in str(exc).lower():
+                    user = await session.scalar(select(User).where(User.id == target.user_id))
+                    if user:
+                        user.is_blocked = True
+                        await session.flush()
+                logger.warning(
+                    "Source problem notification failed with bad request: user_id=%s telegram_user_id=%s "
+                    "username=%s first_name=%s source_id=%s status=%s error=%s",
+                    target.user_id,
+                    target.telegram_user_id,
+                    target.username,
+                    target.first_name,
+                    source.id,
+                    access_status,
+                    exc,
+                )
+                break
+            except Exception:
+                logger.exception(
+                    "Source problem notification failed: user_id=%s telegram_user_id=%s username=%s "
+                    "first_name=%s source_id=%s status=%s",
+                    target.user_id,
+                    target.telegram_user_id,
+                    target.username,
+                    target.first_name,
+                    source.id,
+                    access_status,
+                )
+                break
 
 
 async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
@@ -118,15 +182,71 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
         await session.commit()
 
 
+async def _check_session_health(client: TelegramClient) -> None:
+    if not client.is_connected():
+        logger.critical("MTProto monitor is disconnected from Telegram")
+        return
+    try:
+        authorized = await client.is_user_authorized()
+    except Exception:
+        logger.exception("MTProto session health check failed")
+        return
+    if not authorized:
+        logger.critical(
+            "MTProto session is no longer authorized; monitoring and notifications will stop "
+            "working. Re-run python -m app.monitor.login to refresh TELEGRAM_SESSION_STRING.",
+        )
+
+
 async def refresh_sources_loop(client: TelegramClient, bot: Bot) -> None:
     settings = get_settings()
     interval = max(10, settings.telegram_source_refresh_interval_seconds)
     while True:
+        await _check_session_health(client)
         try:
             await refresh_sources(client, bot)
         except Exception:
             logger.exception("Source refresh failed")
         await asyncio.sleep(interval)
+
+
+async def _notify_admins_blocked_report(bot: Bot, total_blocked: int) -> None:
+    """Send the daily blocked-users count to configured admins over Telegram."""
+    admin_ids = get_settings().admin_ids
+    if not admin_ids:
+        return
+
+    text = f"{heading('Отчёт: заблокировавшие бота')}\n\n{metric('Всего заблокировали', total_blocked)}"
+    for admin_id in admin_ids:
+        try:
+            await bot.send_message(chat_id=admin_id, text=text, parse_mode=ParseMode.HTML)
+        except TelegramForbiddenError:
+            logger.warning(
+                "Blocked users report: admin has blocked the bot, cannot notify: admin_id=%s",
+                admin_id,
+            )
+        except TelegramBadRequest as exc:
+            logger.warning(
+                "Blocked users report: failed to notify admin (bad request): admin_id=%s error=%s",
+                admin_id,
+                exc,
+            )
+        except Exception:
+            logger.exception("Blocked users report: failed to notify admin: admin_id=%s", admin_id)
+
+
+async def blocked_users_report_loop(bot: Bot, *, interval_seconds: int = 86400) -> None:
+    """Periodically log how many users currently have the bot blocked, and
+    notify configured admins (ADMIN_TELEGRAM_IDS) over Telegram."""
+    while True:
+        try:
+            async with SessionLocal() as session:
+                total_blocked = await count_blocked_users(session)
+            logger.info("Blocked users report: total_blocked=%s", total_blocked)
+            await _notify_admins_blocked_report(bot, total_blocked)
+        except Exception:
+            logger.exception("Blocked users report failed")
+        await asyncio.sleep(interval_seconds)
 
 
 async def main(init_db: bool = True) -> None:
@@ -161,6 +281,8 @@ async def main(init_db: bool = True) -> None:
     await refresh_sources(client, bot)
     asyncio.create_task(refresh_sources_loop(client, bot))
     asyncio.create_task(delivery_queue_loop(bot))
+    asyncio.create_task(cleanup_deliveries_loop())
+    asyncio.create_task(blocked_users_report_loop(bot))
     await client.run_until_disconnected()
 
 

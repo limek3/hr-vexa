@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.db.models import Search
+from app.db.models import Search, User
 
 
 def button(text: str, *, style: str = "primary", **kwargs: object) -> InlineKeyboardButton:
@@ -101,3 +101,44 @@ def quiet_hours_actions(enabled: bool) -> InlineKeyboardMarkup:
             [button(text=text, style=style, callback_data="settings:quiet:toggle")],
         ],
     )
+
+
+# --- Admin panel -----------------------------------------------------------
+# These keyboards are only ever sent to chats whose telegram_user_id is in
+# ADMIN_TELEGRAM_IDS (enforced in app/bot/handlers/admin.py), so the
+# callback_data namespace below ("admin:...") is never exposed to regular
+# users.
+
+def admin_panel_actions() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [button(text="Заблокировавшие бота", callback_data="admin:blocked_list")],
+            [button(text="Общая статистика", callback_data="admin:stats")],
+            [button(text="Обновить", callback_data="admin:panel")],
+        ],
+    )
+
+
+def admin_back_actions() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[button(text="Назад", callback_data="admin:panel")]],
+    )
+
+
+def admin_blocked_list_actions(users: list[User]) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for user in users:
+        label = f"@{user.username}" if user.username else (user.first_name or str(user.telegram_user_id))
+        if len(label) > 28:
+            label = f"{label[:25]}..."
+        rows.append(
+            [
+                button(
+                    text=f"Разблокировать {label}",
+                    style="success",
+                    callback_data=f"admin:unblock:{user.telegram_user_id}",
+                ),
+            ],
+        )
+    rows.append([button(text="Назад", callback_data="admin:panel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)

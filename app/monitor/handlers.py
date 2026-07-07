@@ -13,7 +13,7 @@ from app.db.repositories.searches import list_active_searches_for_source
 from app.db.repositories.sources import get_source_by_telegram_id
 from app.db.repositories.user_settings import notifications_paused_for_user
 from app.services.filtering import is_match
-from app.services.notifications import send_candidate_notification
+from app.services.notifications import safe_send_candidate_notification
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +85,54 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
                 await enqueue_notification_once(session, user_id=user.id, match_id=match.id)
                 logger.info("Notification queued by quiet hours: search_id=%s match_id=%s", search.id, match.id)
                 continue
-            await send_candidate_notification(
-                bot,
-                user=user,
-                search=search,
-                source=source,
-                message=message,
-                match=match,
-                sender_username=sender_username,
-                sender_phone=sender_phone,
-                sender_name=sender_name,
+
+            if user.is_blocked:
+                logger.info(
+                    "Notification skipped, user is blocked: user_id=%s telegram_user_id=%s "
+                    "username=%s search_id=%s match_id=%s source_id=%s",
+                    user.id,
+                    user.telegram_user_id,
+                    user.username,
+                    search.id,
+                    match.id,
+                    source.id,
+                )
+                continue
+
+            try:
+                status = await safe_send_candidate_notification(
+                    bot,
+                    session,
+                    user=user,
+                    search=search,
+                    source=source,
+                    message=message,
+                    match=match,
+                    sender_username=sender_username,
+                    sender_phone=sender_phone,
+                    sender_name=sender_name,
+                )
+            except Exception:
+                logger.exception(
+                    "Notification handling raised unexpectedly: user_id=%s telegram_user_id=%s "
+                    "username=%s search_id=%s match_id=%s source_id=%s",
+                    user.id,
+                    user.telegram_user_id,
+                    user.username,
+                    search.id,
+                    match.id,
+                    source.id,
+                )
+                status = "failed"
+
+            logger.info(
+                "Notification handled: status=%s user_id=%s telegram_user_id=%s username=%s "
+                "search_id=%s match_id=%s source_id=%s",
+                status,
+                user.id,
+                user.telegram_user_id,
+                user.username,
+                search.id,
+                match.id,
+                source.id,
             )
-            logger.info("Notification sent: search_id=%s match_id=%s", search.id, match.id)

@@ -37,7 +37,7 @@ class User(Base, TimestampMixin):
     first_name: Mapped[str | None] = mapped_column(String(255))
     subscription_plan: Mapped[str] = mapped_column(String(32), default="free")
     subscription_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     searches: Mapped[list["Search"]] = relationship(back_populates="user")
     settings: Mapped["UserSettings | None"] = relationship(back_populates="user")

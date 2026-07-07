@@ -10,3 +10,4 @@ sessions/
 .vercel/
 postgres_data/
 redis_data/
+*.egg-info/

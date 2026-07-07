@@ -1,14 +1,26 @@
+import asyncio
+import logging
 import re
 from urllib.parse import quote
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.formatting import heading, html, metric, text_value
 from app.bot.keyboards.inline import button
 from app.db.models import Match, Message, Search, Source, User
 from app.services.filtering import analyze_match
+
+logger = logging.getLogger(__name__)
+
+# Cap how long we are willing to wait out a Telegram flood-control pause
+# before giving up on a single notification. Telegram can report much
+# larger retry_after values under heavy flood conditions; we do not want
+# a single send to block the whole delivery loop for minutes.
+MAX_RETRY_AFTER_SECONDS = 30
 
 
 PHONE_RE = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
@@ -130,3 +142,89 @@ async def send_candidate_notification(
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
+
+
+async def safe_send_candidate_notification(
+    bot: Bot,
+    session: AsyncSession,
+    *,
+    user: User,
+    search: Search,
+    source: Source,
+    message: Message,
+    match: Match,
+    sender_username: str | None = None,
+    sender_phone: str | None = None,
+    sender_name: str | None = None,
+) -> str:
+    """Safe wrapper around send_candidate_notification.
+
+    Never raises. Returns one of: "sent", "skipped_blocked", "blocked", "failed".
+    """
+    context = {
+        "user_id": user.id,
+        "telegram_user_id": user.telegram_user_id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "search_id": search.id,
+        "match_id": match.id,
+        "source_id": source.id,
+    }
+
+    if user.is_blocked:
+        logger.info("Notification skipped, user is blocked: %s", context)
+        return "skipped_blocked"
+
+    # Up to one retry: a flood-control pause (TelegramRetryAfter) is not a
+    # permanent failure, so we wait it out once instead of burning through
+    # the delivery attempt budget or mislabeling the user as blocked.
+    for attempt in (1, 2):
+        try:
+            await send_candidate_notification(
+                bot,
+                user=user,
+                search=search,
+                source=source,
+                message=message,
+                match=match,
+                sender_username=sender_username,
+                sender_phone=sender_phone,
+                sender_name=sender_name,
+            )
+            return "sent"
+        except TelegramRetryAfter as exc:
+            if attempt == 2:
+                logger.warning(
+                    "Notification failed after flood-control wait: %s | retry_after=%s",
+                    context,
+                    exc.retry_after,
+                )
+                return "failed"
+            delay = min(exc.retry_after, MAX_RETRY_AFTER_SECONDS)
+            logger.warning(
+                "Notification delayed by flood control, retrying once: %s | retry_after=%s delay=%s",
+                context,
+                exc.retry_after,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            continue
+        except TelegramForbiddenError:
+            user.is_blocked = True
+            await session.flush()
+            logger.warning("Notification blocked, bot was blocked by user: %s", context)
+            return "blocked"
+        except TelegramBadRequest as exc:
+            error_text = str(exc).lower()
+            if "chat not found" in error_text or "user is deactivated" in error_text or "bot was blocked" in error_text:
+                user.is_blocked = True
+                await session.flush()
+                logger.warning("Notification blocked, bad request indicates blocked user: %s | error=%s", context, exc)
+                return "blocked"
+            logger.warning("Notification failed with bad request: %s | error=%s", context, exc)
+            return "failed"
+        except Exception:
+            logger.exception("Notification failed: %s", context)
+            return "failed"
+
+    return "failed"

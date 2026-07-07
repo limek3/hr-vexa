@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    admin_telegram_ids: str = Field(default="", alias="ADMIN_TELEGRAM_IDS")
+
+    notification_delivery_retention_days: int = Field(
+        default=30,
+        alias="NOTIFICATION_DELIVERY_RETENTION_DAYS",
+    )
+
     @property
     def sync_database_url(self) -> str:
         if not self.database_url_raw:
@@ -39,6 +46,19 @@ class Settings(BaseSettings):
         if not self.database_url_raw:
             raise RuntimeError("DATABASE_URL is required")
         return _normalize_database_url(self.database_url_raw, async_driver=True)
+
+    @property
+    def admin_ids(self) -> set[int]:
+        ids: set[int] = set()
+        for raw_token in self.admin_telegram_ids.replace(";", ",").split(","):
+            token = raw_token.strip()
+            if not token:
+                continue
+            try:
+                ids.add(int(token))
+            except ValueError:
+                continue
+        return ids
 
 
 def _normalize_database_url(raw_url: str, *, async_driver: bool) -> str:
