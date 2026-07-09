@@ -35,6 +35,12 @@ def _find_dialog_filter(filters: list[object], title: str) -> object | None:
     return None
 
 
+async def _get_dialog_filters(client: TelegramClient) -> list[object]:
+    result = await client(GetDialogFiltersRequest())
+    filters = getattr(result, "filters", result)
+    return list(filters or [])
+
+
 def _next_dialog_filter_id(filters: list[object]) -> int:
     used_ids = {getattr(dialog_filter, "id", None) for dialog_filter in filters}
     for folder_id in range(2, 256):
@@ -69,7 +75,7 @@ async def add_source_to_telegram_folder(
 
     try:
         input_peer = await client.get_input_entity(entity)
-        filters = list(await client(GetDialogFiltersRequest()))
+        filters = await _get_dialog_filters(client)
         dialog_filter = _find_dialog_filter(filters, folder_title)
         if dialog_filter is None:
             available_titles = [

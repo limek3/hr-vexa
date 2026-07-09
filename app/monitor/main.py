@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -15,7 +16,9 @@ from app.db.models import Source, User
 from app.db.repositories.sources import (
     list_source_notification_targets,
     list_sources,
+    list_sources_pending_folder_sync,
     mark_source_access,
+    mark_source_folder_synced,
 )
 from app.db.repositories.users import count_blocked_users
 from app.db.session import SessionLocal
@@ -36,7 +39,7 @@ RECHECK_STATUSES = {
 }
 NOTIFY_FROM_STATUSES = {"pending", "queued", "joining"}
 PROBLEM_STATUSES = {"unavailable", "not_found", "invite_expired", "join_limited", "join_request_sent"}
-FOLDER_SYNC_STATUSES = {"available"}
+FOLDER_SYNCED_STATUSES = {"added", "already_present", "created"}
 
 
 def _source_problem_hint(status: str) -> str:
@@ -188,7 +191,13 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
             source.type = source_type
             source.access_status = access_status
             if access_status == "available":
-                await add_source_to_telegram_folder(client, source_entity, source=source)
+                folder_status = await add_source_to_telegram_folder(client, source_entity, source=source)
+                if folder_status in FOLDER_SYNCED_STATUSES:
+                    await mark_source_folder_synced(
+                        session,
+                        source_id=source.id,
+                        synced_at=datetime.now(timezone.utc),
+                    )
             if previous_status in NOTIFY_FROM_STATUSES and access_status in PROBLEM_STATUSES:
                 await notify_source_problem(bot, session, source=source, access_status=access_status)
             if allow_join and join_delay:
@@ -202,7 +211,7 @@ async def sync_available_sources_folder(client: TelegramClient) -> None:
         return
 
     async with SessionLocal() as session:
-        sources = await list_sources(session, statuses=FOLDER_SYNC_STATUSES)
+        sources = await list_sources_pending_folder_sync(session)
         for source in sources:
             entity = None
             for ref in (source.input_ref, source.telegram_id):
@@ -215,6 +224,12 @@ async def sync_available_sources_folder(client: TelegramClient) -> None:
                     continue
 
             status = await add_source_to_telegram_folder(client, entity, source=source)
+            if status in FOLDER_SYNCED_STATUSES:
+                await mark_source_folder_synced(
+                    session,
+                    source_id=source.id,
+                    synced_at=datetime.now(timezone.utc),
+                )
             if status in {"added", "created", "folder_missing", "folder_full", "failed", "entity_missing"}:
                 logger.info(
                     "Telegram sources folder sync result: status=%s source_id=%s input_ref=%s "
@@ -225,6 +240,7 @@ async def sync_available_sources_folder(client: TelegramClient) -> None:
                     source.telegram_id,
                     settings.telegram_sources_folder_title,
                 )
+        await session.commit()
 
 
 async def _check_session_health(client: TelegramClient) -> None:

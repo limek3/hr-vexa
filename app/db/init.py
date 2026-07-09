@@ -23,6 +23,7 @@ _EXTRA_SCHEMA_STATEMENTS = (
     "ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_score integer",
     "ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_reason text",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS channel_reminder_sent_on date",
+    "ALTER TABLE sources ADD COLUMN IF NOT EXISTS telegram_folder_synced_at timestamptz",
     """
     CREATE OR REPLACE VIEW vexa_admin_users AS
     SELECT

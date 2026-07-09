@@ -112,6 +112,7 @@ class Source(Base, TimestampMixin):
     type: Mapped[str] = mapped_column(String(32), default="unknown")
     input_ref: Mapped[str] = mapped_column(String(512), unique=True)
     access_status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    telegram_folder_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     search_links: Mapped[list["SearchSource"]] = relationship(back_populates="source")
     messages: Mapped[list["Message"]] = relationship(back_populates="source")

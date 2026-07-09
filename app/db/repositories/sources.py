@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -21,6 +22,16 @@ async def list_sources(session: AsyncSession, statuses: set[str] | None = None) 
     if statuses:
         query = query.where(Source.access_status.in_(statuses))
     result = await session.execute(query)
+    return list(result.scalars().all())
+
+
+async def list_sources_pending_folder_sync(session: AsyncSession) -> list[Source]:
+    result = await session.execute(
+        select(Source)
+        .where(Source.access_status == "available")
+        .where(Source.telegram_folder_synced_at.is_(None))
+        .order_by(Source.created_at.asc()),
+    )
     return list(result.scalars().all())
 
 
@@ -47,6 +58,19 @@ async def mark_source_access(
             type=source_type,
             access_status=access_status,
         ),
+    )
+
+
+async def mark_source_folder_synced(
+    session: AsyncSession,
+    *,
+    source_id: int,
+    synced_at: datetime,
+) -> None:
+    await session.execute(
+        update(Source)
+        .where(Source.id == source_id)
+        .values(telegram_folder_synced_at=synced_at),
     )
 
 
