@@ -1,3 +1,5 @@
+from datetime import date
+
 from aiogram.types import User as TelegramUser
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,3 +48,32 @@ async def list_blocked_users(session: AsyncSession, *, limit: int = 10) -> list[
         .limit(limit),
     )
     return list(result.scalars().all())
+
+
+async def list_users_for_channel_reminder(
+    session: AsyncSession,
+    *,
+    today: date,
+    limit: int = 500,
+) -> list[User]:
+    result = await session.execute(
+        select(User)
+        .where(User.is_blocked.is_(False))
+        .where(
+            (User.channel_reminder_sent_on.is_(None))
+            | (User.channel_reminder_sent_on < today),
+        )
+        .order_by(User.created_at.asc())
+        .limit(limit),
+    )
+    return list(result.scalars().all())
+
+
+async def mark_channel_reminder_sent(
+    session: AsyncSession,
+    *,
+    user: User,
+    today: date,
+) -> None:
+    user.channel_reminder_sent_on = today
+    await session.flush()

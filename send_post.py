@@ -49,6 +49,8 @@ text = """
 
 Коротко: ключи помогают найти кандидата, минус-слова убирают вакансии и рекламу.
 
+<blockquote>Специально для вас собрали готовую базу под вакансии с ключами и минус-словами. Можно открыть, выбрать профессию и сразу скопировать готовый блок для Vexa.</blockquote>
+
 """
 
 keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -56,6 +58,12 @@ keyboard = InlineKeyboardMarkup(inline_keyboard=[
         InlineKeyboardButton(
             text="🚀 Открыть бота",
             url="https://t.me/vexahelp_bot"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            text="📗 База ключей",
+            url="https://docs.google.com/spreadsheets/d/1j2vgRFPEO40gJKQoFX9hV6Md41RIxEANjwSe2cpbPa0/edit?gid=1403825979#gid=1403825979"
         )
     ],
     [

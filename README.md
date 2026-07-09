@@ -35,9 +35,14 @@ TELEGRAM_AUTO_JOIN_SOURCES=true
 TELEGRAM_SOURCE_REFRESH_INTERVAL_SECONDS=60
 TELEGRAM_JOIN_DELAY_SECONDS=12
 TELEGRAM_MAX_JOINS_PER_CYCLE=2
-TELEGRAM_SOURCES_FOLDER_TITLE=
+TELEGRAM_SOURCES_FOLDER_TITLE=Vexa Sources
 TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=false
 MAX_SOURCES_PER_SEARCH=10
+SUBSCRIPTION_REMINDER_ENABLED=true
+SUBSCRIPTION_CHANNEL_ID=@vexa_group
+SUBSCRIPTION_CHANNEL_URL=https://t.me/vexa_group
+SUBSCRIPTION_REMINDER_TIME=18:00
+SUBSCRIPTION_REMINDER_TIMEZONE=Europe/Moscow
 APP_ENV=production
 LOG_LEVEL=INFO
 ```
@@ -47,20 +52,25 @@ Optional:
 ```env
 BOT_PROXY_URL=
 ADMIN_TELEGRAM_IDS=
-TELEGRAM_SOURCES_FOLDER_TITLE=
+TELEGRAM_SOURCES_FOLDER_TITLE=Vexa Sources
 TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=false
 NOTIFICATION_DELIVERY_RETENTION_DAYS=30
+SUBSCRIPTION_REMINDER_ENABLED=true
+SUBSCRIPTION_CHANNEL_ID=@vexa_group
+SUBSCRIPTION_CHANNEL_URL=https://t.me/vexa_group
+SUBSCRIPTION_REMINDER_TIME=18:00
+SUBSCRIPTION_REMINDER_TIMEZONE=Europe/Moscow
 ```
 
 `TELEGRAM_AUTO_JOIN_SOURCES=true` lets the MTProto monitor join public sources and
 `https://t.me/+...` invite links when the connected Telegram account is allowed to join.
 `TELEGRAM_MAX_JOINS_PER_CYCLE=2` and `TELEGRAM_JOIN_DELAY_SECONDS=12` keep joins in a
 small queue so the account does not try to join many sources at once.
-`TELEGRAM_SOURCES_FOLDER_TITLE` can be set to the exact Telegram folder name where available
-sources should be added. This folder belongs to the MTProto account from `TELEGRAM_SESSION_STRING`,
-not to end users of the bot. If the folder does not exist, the bot logs `folder_missing` and keeps
-working. Set `TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=true` only if the monitor should create
-that folder automatically.
+`TELEGRAM_SOURCES_FOLDER_TITLE=Vexa Sources` should match the existing Telegram folder name exactly.
+This folder belongs to the MTProto account from `TELEGRAM_SESSION_STRING`, not to end users of the bot.
+If the folder does not exist or the title is different, the bot logs `folder_missing` with the folder
+titles it can see and keeps working. Keep `TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=false` when the
+folder is created manually.
 `MAX_SOURCES_PER_SEARCH=10` keeps one search limited to 10 sources.
 `ADMIN_TELEGRAM_IDS` is a comma-separated list of Telegram user IDs allowed to use the
 `/unblock` and `/blocked_count` admin bot commands (see "Blocked Bot Users" below). Leave it
@@ -68,6 +78,11 @@ empty to disable both commands.
 `NOTIFICATION_DELIVERY_RETENTION_DAYS` controls how long terminal (`blocked`/`failed`)
 notification delivery records are kept before an automatic cleanup job removes them;
 `sent` records are never auto-deleted.
+`SUBSCRIPTION_REMINDER_ENABLED=true` enables a daily channel subscription reminder.
+At `SUBSCRIPTION_REMINDER_TIME=18:00` in `SUBSCRIPTION_REMINDER_TIMEZONE=Europe/Moscow`,
+the bot checks whether each user is subscribed to `SUBSCRIPTION_CHANNEL_ID=@vexa_group`.
+If the user is not subscribed, Vexa sends one reminder per day with a button to
+`SUBSCRIPTION_CHANNEL_URL`. For reliable checks, add the bot as an admin/member of the channel.
 
 Use Supabase Session Pooler for `DATABASE_URL` if direct connection does not work from your network.
 

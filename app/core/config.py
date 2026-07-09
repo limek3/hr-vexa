@@ -40,6 +40,18 @@ class Settings(BaseSettings):
         alias="NOTIFICATION_DELIVERY_RETENTION_DAYS",
     )
 
+    subscription_reminder_enabled: bool = Field(default=True, alias="SUBSCRIPTION_REMINDER_ENABLED")
+    subscription_channel_id: str = Field(default="@vexa_group", alias="SUBSCRIPTION_CHANNEL_ID")
+    subscription_channel_url: str = Field(
+        default="https://t.me/vexa_group",
+        alias="SUBSCRIPTION_CHANNEL_URL",
+    )
+    subscription_reminder_time: str = Field(default="18:00", alias="SUBSCRIPTION_REMINDER_TIME")
+    subscription_reminder_timezone: str = Field(
+        default="Europe/Moscow",
+        alias="SUBSCRIPTION_REMINDER_TIMEZONE",
+    )
+
     @property
     def sync_database_url(self) -> str:
         if not self.database_url_raw:

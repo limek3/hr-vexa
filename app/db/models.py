@@ -38,6 +38,7 @@ class User(Base, TimestampMixin):
     subscription_plan: Mapped[str] = mapped_column(String(32), default="free")
     subscription_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    channel_reminder_sent_on: Mapped[date | None] = mapped_column(Date)
 
     searches: Mapped[list["Search"]] = relationship(back_populates="user")
     settings: Mapped["UserSettings | None"] = relationship(back_populates="user")

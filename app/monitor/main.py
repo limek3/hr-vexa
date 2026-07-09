@@ -24,6 +24,7 @@ from app.monitor.delivery_queue import cleanup_deliveries_loop, delivery_queue_l
 from app.monitor.folders import add_source_to_telegram_folder
 from app.monitor.handlers import handle_new_message
 from app.monitor.source_checker import resolve_source_access
+from app.services.channel_reminder import subscription_reminder_loop
 from app.services.notifications import MAX_RETRY_AFTER_SECONDS
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ RECHECK_STATUSES = {
 }
 NOTIFY_FROM_STATUSES = {"pending", "queued", "joining"}
 PROBLEM_STATUSES = {"unavailable", "not_found", "invite_expired", "join_limited", "join_request_sent"}
+FOLDER_SYNC_STATUSES = {"available"}
 
 
 def _source_problem_hint(status: str) -> str:
@@ -194,6 +196,37 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
         await session.commit()
 
 
+async def sync_available_sources_folder(client: TelegramClient) -> None:
+    settings = get_settings()
+    if not settings.telegram_sources_folder_title.strip():
+        return
+
+    async with SessionLocal() as session:
+        sources = await list_sources(session, statuses=FOLDER_SYNC_STATUSES)
+        for source in sources:
+            entity = None
+            for ref in (source.input_ref, source.telegram_id):
+                if not ref:
+                    continue
+                try:
+                    entity = await client.get_input_entity(ref)
+                    break
+                except Exception:
+                    continue
+
+            status = await add_source_to_telegram_folder(client, entity, source=source)
+            if status in {"added", "created", "folder_missing", "folder_full", "failed", "entity_missing"}:
+                logger.info(
+                    "Telegram sources folder sync result: status=%s source_id=%s input_ref=%s "
+                    "telegram_id=%s folder_title=%s",
+                    status,
+                    source.id,
+                    source.input_ref,
+                    source.telegram_id,
+                    settings.telegram_sources_folder_title,
+                )
+
+
 async def _check_session_health(client: TelegramClient) -> None:
     if not client.is_connected():
         logger.critical("MTProto monitor is disconnected from Telegram")
@@ -217,6 +250,7 @@ async def refresh_sources_loop(client: TelegramClient, bot: Bot) -> None:
         await _check_session_health(client)
         try:
             await refresh_sources(client, bot)
+            await sync_available_sources_folder(client)
         except Exception:
             logger.exception("Source refresh failed")
         await asyncio.sleep(interval)
@@ -295,6 +329,7 @@ async def main(init_db: bool = True) -> None:
     asyncio.create_task(delivery_queue_loop(bot))
     asyncio.create_task(cleanup_deliveries_loop())
     asyncio.create_task(blocked_users_report_loop(bot))
+    asyncio.create_task(subscription_reminder_loop(bot))
     await client.run_until_disconnected()
 
 

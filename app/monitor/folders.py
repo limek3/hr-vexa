@@ -72,12 +72,19 @@ async def add_source_to_telegram_folder(
         filters = list(await client(GetDialogFiltersRequest()))
         dialog_filter = _find_dialog_filter(filters, folder_title)
         if dialog_filter is None:
+            available_titles = [
+                _dialog_filter_title(item)
+                for item in filters
+                if hasattr(item, "id") and hasattr(item, "include_peers")
+            ]
             if not settings.telegram_sources_folder_create_if_missing:
                 logger.warning(
-                    "Telegram sources folder not found: folder_title=%s source_id=%s input_ref=%s",
+                    "Telegram sources folder not found: folder_title=%s source_id=%s input_ref=%s "
+                    "available_folders=%s",
                     folder_title,
                     source.id,
                     source.input_ref,
+                    available_titles,
                 )
                 return "folder_missing"
 
