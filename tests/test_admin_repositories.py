@@ -1,7 +1,11 @@
 from datetime import UTC, datetime
 
 from app.db.models import DailyStats, SearchKeyword, SearchMinusWord
-from app.db.repositories.stats import get_global_stats, list_admin_user_search_report
+from app.db.repositories.stats import (
+    get_global_stats,
+    list_admin_search_export_details,
+    list_admin_user_search_report,
+)
 from app.db.repositories.users import list_blocked_users
 from tests.factories import (
     link_search_source,
@@ -115,3 +119,41 @@ async def test_list_admin_user_search_report_includes_users_and_search_metrics(s
     assert empty_row.search_id is None
     assert empty_row.user_searches_total == 0
     assert empty_row.search_matches_total == 0
+
+
+async def test_list_admin_search_export_details_returns_configuration(session):
+    user, search, source, message, match = await make_full_chain(
+        session,
+        telegram_user_id=20,
+        source_ref="ref-admin-export-details-1",
+        search_title="Config search",
+    )
+    unavailable_source = await make_source(
+        session,
+        input_ref="ref-admin-export-details-2",
+        access_status="unavailable",
+    )
+    await link_search_source(session, search=search, source=unavailable_source, is_active=False)
+    session.add_all(
+        [
+            SearchKeyword(search_id=search.id, value="driver"),
+            SearchMinusWord(search_id=search.id, value="spam"),
+        ],
+    )
+    await session.flush()
+
+    rows = await list_admin_search_export_details(session)
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.user_id == user.id
+    assert row.telegram_user_id == 20
+    assert row.search_id == search.id
+    assert row.search_title == "Config search"
+    assert row.keywords == ["driver"]
+    assert row.minus_words == ["spam"]
+    assert {source.input_ref for source in row.sources} == {
+        "ref-admin-export-details-1",
+        "ref-admin-export-details-2",
+    }
+    assert any(source.is_active is False for source in row.sources)

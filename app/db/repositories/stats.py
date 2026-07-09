@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from app.db.models import (
     DailyStats,
@@ -66,6 +66,34 @@ class AdminUserSearchReportRow:
     search_matches_today: int
     search_matches_total: int
     search_hidden_total: int
+
+
+@dataclass(frozen=True)
+class AdminSourceExportItem:
+    source_id: int
+    telegram_id: int | None
+    input_ref: str
+    title: str
+    source_type: str
+    access_status: str
+    is_active: bool
+
+
+@dataclass(frozen=True)
+class AdminSearchExportRow:
+    user_id: int
+    telegram_user_id: int
+    username: str | None
+    first_name: str | None
+    user_is_blocked: bool
+    search_id: int
+    search_title: str
+    search_is_active: bool
+    search_created_at: object
+    search_updated_at: object
+    keywords: list[str]
+    minus_words: list[str]
+    sources: list[AdminSourceExportItem]
 
 
 async def get_user_stats(session: AsyncSession, *, user_id: int) -> UserStats:
@@ -269,6 +297,61 @@ async def list_admin_user_search_report(
         )
         for row in result.all()
     ]
+
+
+async def list_admin_search_export_details(
+    session: AsyncSession,
+    *,
+    limit: int = 5000,
+) -> list[AdminSearchExportRow]:
+    """Return detailed search configuration for the admin Excel export."""
+    result = await session.execute(
+        select(Search)
+        .join(User, User.id == Search.user_id)
+        .options(
+            selectinload(Search.user),
+            selectinload(Search.keywords),
+            selectinload(Search.minus_words),
+            selectinload(Search.sources).selectinload(SearchSource.source),
+        )
+        .order_by(User.created_at.desc(), Search.created_at.desc())
+        .limit(limit),
+    )
+    searches = list(result.scalars().unique().all())
+
+    rows: list[AdminSearchExportRow] = []
+    for search in searches:
+        user = search.user
+        rows.append(
+            AdminSearchExportRow(
+                user_id=user.id,
+                telegram_user_id=user.telegram_user_id,
+                username=user.username,
+                first_name=user.first_name,
+                user_is_blocked=user.is_blocked,
+                search_id=search.id,
+                search_title=search.title,
+                search_is_active=search.is_active,
+                search_created_at=search.created_at,
+                search_updated_at=search.updated_at,
+                keywords=[item.value for item in search.keywords],
+                minus_words=[item.value for item in search.minus_words],
+                sources=[
+                    AdminSourceExportItem(
+                        source_id=link.source.id,
+                        telegram_id=link.source.telegram_id,
+                        input_ref=link.source.input_ref,
+                        title=link.source.title,
+                        source_type=link.source.type,
+                        access_status=link.source.access_status,
+                        is_active=link.is_active,
+                    )
+                    for link in search.sources
+                    if link.source is not None
+                ],
+            ),
+        )
+    return rows
 
 
 async def get_global_stats(session: AsyncSession) -> GlobalStats:

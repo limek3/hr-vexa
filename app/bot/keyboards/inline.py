@@ -114,7 +114,7 @@ def admin_panel_actions() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [button(text="Заблокировавшие бота", callback_data="admin:blocked_list")],
             [button(text="Общая статистика", callback_data="admin:stats")],
-            [button(text="Выгрузка пользователей", callback_data="admin:export_users")],
+            [button(text="Выгрузка Excel", callback_data="admin:export_users")],
             [button(text="Обновить", callback_data="admin:panel")],
         ],
     )

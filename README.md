@@ -172,9 +172,9 @@ open an inline-button panel, visible and usable only by those accounts:
   the list in place.
 - **Общая статистика** — instance-wide numbers: total/blocked users, total/active searches,
   total sources, matches today and all-time.
-- **Выгрузка пользователей** — sends admins a CSV file with users and their searches. Each row
-  represents one user search and includes user status, search status, keyword/minus-word counts,
-  source counts, available-source counts, matches today, total matches, and hidden matches.
+- **Выгрузка Excel** — sends admins an `.xlsx` workbook with separate sheets for summary,
+  users, searches, sources, and keywords/minus-words. The `Поиски` sheet shows the actual
+  configured keywords, minus-words, sources, source statuses, and match counters.
 - **Обновить** — redraws the panel.
 
 Non-admins who somehow send `/admin` or one of the `admin:...` callback buttons get no response;
