@@ -1,16 +1,31 @@
 import logging
+from csv import writer
+from datetime import UTC, datetime
+from io import StringIO
 
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.formatting import heading, metric
-from app.bot.keyboards.inline import admin_back_actions, admin_blocked_list_actions, admin_panel_actions
+from app.bot.keyboards.inline import (
+    admin_back_actions,
+    admin_blocked_list_actions,
+    admin_panel_actions,
+)
 from app.core.config import get_settings
 from app.db.models import User
-from app.db.repositories.stats import get_global_stats
-from app.db.repositories.users import count_blocked_users, get_user_by_telegram_id, list_blocked_users
+from app.db.repositories.stats import (
+    AdminUserSearchReportRow,
+    get_global_stats,
+    list_admin_user_search_report,
+)
+from app.db.repositories.users import (
+    count_blocked_users,
+    get_user_by_telegram_id,
+    list_blocked_users,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +49,94 @@ def _user_label(user: User) -> str:
     if user.username:
         return f"@{user.username}"
     return user.first_name or str(user.telegram_user_id)
+
+
+def _csv_cell(value: object) -> object:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    text = str(value)
+    if text.startswith(("=", "+", "-", "@")):
+        return f"'{text}"
+    return text
+
+
+def _build_users_export(rows: list[AdminUserSearchReportRow]) -> bytes:
+    output = StringIO()
+    csv = writer(output)
+    csv.writerow(
+        [
+            "user_db_id",
+            "telegram_user_id",
+            "username",
+            "first_name",
+            "bot_blocked",
+            "user_created_at",
+            "user_updated_at",
+            "user_searches_total",
+            "user_searches_active",
+            "user_matches_today",
+            "user_matches_total",
+            "search_id",
+            "search_title",
+            "search_active",
+            "keywords_count",
+            "minus_words_count",
+            "sources_total",
+            "sources_available",
+            "search_matches_today",
+            "search_matches_total",
+            "search_hidden_total",
+        ],
+    )
+    for row in rows:
+        csv.writerow(
+            [
+                row.user_id,
+                row.telegram_user_id,
+                _csv_cell(row.username),
+                _csv_cell(row.first_name),
+                _csv_cell(row.user_is_blocked),
+                _csv_cell(row.user_created_at),
+                _csv_cell(row.user_updated_at),
+                row.user_searches_total,
+                row.user_searches_active,
+                row.user_matches_today,
+                row.user_matches_total,
+                row.search_id or "",
+                _csv_cell(row.search_title),
+                "" if row.search_is_active is None else _csv_cell(row.search_is_active),
+                row.keywords_count,
+                row.minus_words_count,
+                row.sources_total,
+                row.sources_available,
+                row.search_matches_today,
+                row.search_matches_total,
+                row.search_hidden_total,
+            ],
+        )
+    return output.getvalue().encode("utf-8-sig")
+
+
+def _users_export_caption(rows: list[AdminUserSearchReportRow]) -> str:
+    user_ids = {row.user_id for row in rows}
+    search_ids = {row.search_id for row in rows if row.search_id is not None}
+    blocked_count = len({row.user_id for row in rows if row.user_is_blocked})
+    active_searches = len(
+        {row.search_id for row in rows if row.search_id is not None and row.search_is_active},
+    )
+    matches_total = sum(row.search_matches_total for row in rows if row.search_id is not None)
+    return (
+        f"{heading('Выгрузка пользователей')}\n\n"
+        f"{metric('Пользователей', len(user_ids))}\n"
+        f"{metric('Заблокировали бота', blocked_count)}\n"
+        f"{metric('Поисков всего', len(search_ids))}\n"
+        f"{metric('Поисков включено', active_searches)}\n"
+        f"{metric('Совпадений всего', matches_total)}\n\n"
+        "CSV: одна строка = один поиск пользователя. "
+        "Пользователи без поисков тоже включены."
+    )
 
 
 async def _render_blocked_list(session: AsyncSession) -> tuple[str, list[User]]:
@@ -92,6 +195,31 @@ async def admin_stats(callback: CallbackQuery, session: AsyncSession) -> None:
     if callback.message:
         await callback.message.edit_text(text, reply_markup=admin_back_actions())
     await callback.answer()
+
+
+@router.callback_query(F.data == "admin:export_users")
+async def admin_export_users(callback: CallbackQuery, session: AsyncSession) -> None:
+    if not callback.from_user or not _is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+
+    await callback.answer("Готовлю выгрузку...")
+    rows = await list_admin_user_search_report(session)
+    csv_bytes = _build_users_export(rows)
+    filename = f"vexa_users_searches_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    logger.info(
+        "Admin exported users/searches report: admin_id=%s rows=%s filename=%s",
+        callback.from_user.id,
+        len(rows),
+        filename,
+    )
+
+    if callback.message:
+        await callback.message.answer_document(
+            BufferedInputFile(csv_bytes, filename=filename),
+            caption=_users_export_caption(rows),
+            reply_markup=admin_back_actions(),
+        )
 
 
 @router.callback_query(F.data == "admin:blocked_list")

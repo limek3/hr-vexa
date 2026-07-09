@@ -35,6 +35,8 @@ TELEGRAM_AUTO_JOIN_SOURCES=true
 TELEGRAM_SOURCE_REFRESH_INTERVAL_SECONDS=60
 TELEGRAM_JOIN_DELAY_SECONDS=12
 TELEGRAM_MAX_JOINS_PER_CYCLE=2
+TELEGRAM_SOURCES_FOLDER_TITLE=
+TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=false
 MAX_SOURCES_PER_SEARCH=10
 APP_ENV=production
 LOG_LEVEL=INFO
@@ -45,6 +47,8 @@ Optional:
 ```env
 BOT_PROXY_URL=
 ADMIN_TELEGRAM_IDS=
+TELEGRAM_SOURCES_FOLDER_TITLE=
+TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=false
 NOTIFICATION_DELIVERY_RETENTION_DAYS=30
 ```
 
@@ -52,6 +56,11 @@ NOTIFICATION_DELIVERY_RETENTION_DAYS=30
 `https://t.me/+...` invite links when the connected Telegram account is allowed to join.
 `TELEGRAM_MAX_JOINS_PER_CYCLE=2` and `TELEGRAM_JOIN_DELAY_SECONDS=12` keep joins in a
 small queue so the account does not try to join many sources at once.
+`TELEGRAM_SOURCES_FOLDER_TITLE` can be set to the exact Telegram folder name where available
+sources should be added. This folder belongs to the MTProto account from `TELEGRAM_SESSION_STRING`,
+not to end users of the bot. If the folder does not exist, the bot logs `folder_missing` and keeps
+working. Set `TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING=true` only if the monitor should create
+that folder automatically.
 `MAX_SOURCES_PER_SEARCH=10` keeps one search limited to 10 sources.
 `ADMIN_TELEGRAM_IDS` is a comma-separated list of Telegram user IDs allowed to use the
 `/unblock` and `/blocked_count` admin bot commands (see "Blocked Bot Users" below). Leave it
@@ -163,6 +172,9 @@ open an inline-button panel, visible and usable only by those accounts:
   the list in place.
 - **Общая статистика** — instance-wide numbers: total/blocked users, total/active searches,
   total sources, matches today and all-time.
+- **Выгрузка пользователей** — sends admins a CSV file with users and their searches. Each row
+  represents one user search and includes user status, search status, keyword/minus-word counts,
+  source counts, available-source counts, matches today, total matches, and hidden matches.
 - **Обновить** — redraws the panel.
 
 Non-admins who somehow send `/admin` or one of the `admin:...` callback buttons get no response;

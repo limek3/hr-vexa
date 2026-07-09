@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     )
     telegram_join_delay_seconds: int = Field(default=12, alias="TELEGRAM_JOIN_DELAY_SECONDS")
     telegram_max_joins_per_cycle: int = Field(default=2, alias="TELEGRAM_MAX_JOINS_PER_CYCLE")
+    telegram_sources_folder_title: str = Field(default="", alias="TELEGRAM_SOURCES_FOLDER_TITLE")
+    telegram_sources_folder_create_if_missing: bool = Field(
+        default=False,
+        alias="TELEGRAM_SOURCES_FOLDER_CREATE_IF_MISSING",
+    )
 
     max_sources_per_search: int = Field(default=10, alias="MAX_SOURCES_PER_SEARCH")
 

@@ -46,6 +46,16 @@ def _chat_from_updates(updates: object) -> object | None:
     return chats[0] if chats else None
 
 
+def _access_result(
+    telegram_id: int | None,
+    title: str,
+    source_type: str,
+    access_status: str,
+    entity: object | None = None,
+) -> tuple[int | None, str, str, str, tuple[int, str, str] | None, object | None]:
+    return telegram_id, title, source_type, access_status, None, entity
+
+
 async def _join_invite_source(
     client: TelegramClient,
     invite_hash: str,
@@ -84,7 +94,7 @@ async def resolve_source_access(
     source: Source,
     *,
     allow_join: bool = True,
-) -> tuple[int | None, str, str, str, tuple[int, str, str] | None]:
+) -> tuple[int | None, str, str, str, tuple[int, str, str] | None, object | None]:
     try:
         invite_hash = _invite_hash(source.input_ref)
         if invite_hash:
@@ -92,27 +102,42 @@ async def resolve_source_access(
             if entity is None:
                 access_status = "queued" if get_settings().telegram_auto_join_sources else "unavailable"
                 logger.info("Invite source is %s: %s", access_status, source.input_ref)
-                return source.telegram_id, source.title or source.input_ref, source.type, access_status, None
+                return _access_result(
+                    source.telegram_id,
+                    source.title or source.input_ref,
+                    source.type,
+                    access_status,
+                )
         else:
             entity = await client.get_entity(source.input_ref)
             entity = await _join_public_source_if_needed(client, entity, allow_join=allow_join)
             if getattr(entity, "left", False):
                 access_status = "queued" if get_settings().telegram_auto_join_sources else "unavailable"
                 logger.info("Source is %s: %s", access_status, source.input_ref)
-                return (
+                return _access_result(
                     source.telegram_id,
                     getattr(entity, "title", None) or source.input_ref,
                     _source_type(entity),
                     access_status,
-                    None,
+                    entity,
                 )
 
         telegram_id = getattr(entity, "id", None)
         title = getattr(entity, "title", None) or source.input_ref
-        return telegram_id, title, _source_type(entity), "available", None
+        return _access_result(telegram_id, title, _source_type(entity), "available", entity)
     except RPCError as exc:
         logger.warning("Source unavailable %s: %s", source.input_ref, exc)
-        return source.telegram_id, source.title or source.input_ref, source.type, _rpc_status(exc), None
+        return _access_result(
+            source.telegram_id,
+            source.title or source.input_ref,
+            source.type,
+            _rpc_status(exc),
+        )
     except ValueError as exc:
         logger.warning("Source not found %s: %s", source.input_ref, exc)
-        return source.telegram_id, source.title or source.input_ref, source.type, "not_found", None
+        return _access_result(
+            source.telegram_id,
+            source.title or source.input_ref,
+            source.type,
+            "not_found",
+        )

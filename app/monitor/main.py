@@ -21,6 +21,7 @@ from app.db.repositories.users import count_blocked_users
 from app.db.session import SessionLocal
 from app.monitor.client import build_telegram_client
 from app.monitor.delivery_queue import cleanup_deliveries_loop, delivery_queue_loop
+from app.monitor.folders import add_source_to_telegram_folder
 from app.monitor.handlers import handle_new_message
 from app.monitor.source_checker import resolve_source_access
 from app.services.notifications import MAX_RETRY_AFTER_SECONDS
@@ -160,7 +161,14 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
                 await session.commit()
                 joins_used += 1
 
-            telegram_id, title, source_type, access_status, _linked_discussion = await resolve_source_access(
+            (
+                telegram_id,
+                title,
+                source_type,
+                access_status,
+                _linked_discussion,
+                source_entity,
+            ) = await resolve_source_access(
                 client,
                 source,
                 allow_join=allow_join,
@@ -173,8 +181,12 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
                 source_type=source_type,
                 access_status=access_status,
             )
+            source.telegram_id = telegram_id
             source.title = title
+            source.type = source_type
             source.access_status = access_status
+            if access_status == "available":
+                await add_source_to_telegram_folder(client, source_entity, source=source)
             if previous_status in NOTIFY_FROM_STATUSES and access_status in PROBLEM_STATUSES:
                 await notify_source_problem(bot, session, source=source, access_status=access_status)
             if allow_join and join_delay:
