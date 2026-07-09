@@ -40,6 +40,7 @@ RECHECK_STATUSES = {
 NOTIFY_FROM_STATUSES = {"pending", "queued", "joining"}
 PROBLEM_STATUSES = {"unavailable", "not_found", "invite_expired", "join_limited", "join_request_sent"}
 FOLDER_SYNCED_STATUSES = {"added", "already_present", "created"}
+FOLDER_TERMINAL_STATUSES = FOLDER_SYNCED_STATUSES | {"entity_missing", "folder_full"}
 
 
 def _source_problem_hint(status: str) -> str:
@@ -192,7 +193,7 @@ async def refresh_sources(client: TelegramClient, bot: Bot) -> None:
             source.access_status = access_status
             if access_status == "available":
                 folder_status = await add_source_to_telegram_folder(client, source_entity, source=source)
-                if folder_status in FOLDER_SYNCED_STATUSES:
+                if folder_status in FOLDER_TERMINAL_STATUSES:
                     await mark_source_folder_synced(
                         session,
                         source_id=source.id,
@@ -224,7 +225,7 @@ async def sync_available_sources_folder(client: TelegramClient) -> None:
                     continue
 
             status = await add_source_to_telegram_folder(client, entity, source=source)
-            if status in FOLDER_SYNCED_STATUSES:
+            if status in FOLDER_TERMINAL_STATUSES:
                 await mark_source_folder_synced(
                     session,
                     source_id=source.id,
