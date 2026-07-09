@@ -173,8 +173,10 @@ open an inline-button panel, visible and usable only by those accounts:
 - **Общая статистика** — instance-wide numbers: total/blocked users, total/active searches,
   total sources, matches today and all-time.
 - **Выгрузка Excel** — sends admins an `.xlsx` workbook with separate sheets for summary,
-  users, searches, sources, and keywords/minus-words. The `Поиски` sheet shows the actual
-  configured keywords, minus-words, sources, source statuses, and match counters.
+  users, searches, sources, matches, messages, and keywords/minus-words. The `Поиски` sheet
+  shows configured keywords, minus-words, sources, source statuses, and match counters. The
+  `Совпадения` and `Сообщения` sheets show found messages, sender data, matched keyword,
+  match score/reason, delivery status, feedback, favorites, and links.
 - **Обновить** — redraws the panel.
 
 Non-admins who somehow send `/admin` or one of the `admin:...` callback buttons get no response;
@@ -195,6 +197,37 @@ rest of the monitor.
 Old terminal delivery records (`status` = `blocked` or `failed`) older than
 `NOTIFICATION_DELIVERY_RETENTION_DAYS` are cleaned up automatically once a day; `sent` records
 are kept indefinitely for audit purposes.
+
+## Supabase Admin Views
+
+Run Alembic migrations after deploy so Supabase gets readable admin views:
+
+```bash
+alembic upgrade head
+```
+
+The migration `20260709_0001_admin_observability.py` adds sender/match-detail fields and creates:
+
+- `vexa_admin_users` — one row per user with search/source/match totals.
+- `vexa_admin_searches` — one row per search with configured keywords, minus-words, sources and matches.
+- `vexa_admin_sources` — one row per source attached to a search, with access status and message counts.
+- `vexa_admin_matches` — one row per found match with user, search, source, message text, sender data,
+  matched keyword, score, reason, notification status, feedback and favorite status.
+
+Useful Supabase queries:
+
+```sql
+select *
+from vexa_admin_matches
+order by match_created_at desc
+limit 100;
+```
+
+```sql
+select *
+from vexa_admin_searches
+order by search_created_at desc;
+```
 
 ## MVP Scope
 

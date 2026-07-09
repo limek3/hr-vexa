@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.db.models import User
 from app.db.repositories.stats import (
     get_global_stats,
+    list_admin_match_export_details,
     list_admin_search_export_details,
     list_admin_user_search_report,
 )
@@ -66,7 +67,7 @@ def _users_export_caption(rows) -> str:
         f"{metric('Поисков включено', active_searches)}\n"
         f"{metric('Совпадений всего', matches_total)}\n\n"
         "Файл Excel содержит листы: Сводка, Пользователи, "
-        "Поиски, Источники, Ключи."
+        "Поиски, Источники, Совпадения, Сообщения, Ключи."
     )
 
 
@@ -137,12 +138,13 @@ async def admin_export_users(callback: CallbackQuery, session: AsyncSession) -> 
     await callback.answer("Готовлю выгрузку...")
     rows = await list_admin_user_search_report(session)
     search_rows = await list_admin_search_export_details(session)
-    workbook_bytes = build_admin_users_workbook(rows, search_rows)
+    match_rows = await list_admin_match_export_details(session)
+    workbook_bytes = build_admin_users_workbook(rows, search_rows, match_rows)
     filename = f"vexa_users_searches_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.xlsx"
     logger.info(
         "Admin exported users/searches report: admin_id=%s rows=%s filename=%s",
         callback.from_user.id,
-        len(search_rows),
+        len(match_rows),
         filename,
     )
 

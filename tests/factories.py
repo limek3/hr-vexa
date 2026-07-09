@@ -80,6 +80,9 @@ async def make_message(
         telegram_message_id=telegram_message_id,
         telegram_date=datetime.now(UTC),
         text=text,
+        sender_username=None,
+        sender_phone=None,
+        sender_name=None,
     )
     session.add(message)
     await session.flush()
@@ -94,7 +97,15 @@ async def make_match(
     source: Source,
     message: Message,
 ) -> Match:
-    match = Match(user_id=user.id, search_id=search.id, source_id=source.id, message_id=message.id)
+    match = Match(
+        user_id=user.id,
+        search_id=search.id,
+        source_id=source.id,
+        message_id=message.id,
+        matched_keyword=None,
+        match_score=None,
+        match_reason=None,
+    )
     session.add(match)
     await session.flush()
     return match

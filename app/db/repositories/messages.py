@@ -15,6 +15,9 @@ async def save_message_if_new(
     telegram_date: datetime,
     text: str,
     url: str | None,
+    sender_username: str | None = None,
+    sender_phone: str | None = None,
+    sender_name: str | None = None,
 ) -> Message | None:
     stmt = (
         pg_insert(Message)
@@ -24,6 +27,9 @@ async def save_message_if_new(
             telegram_date=telegram_date,
             text=text,
             url=url,
+            sender_username=sender_username,
+            sender_phone=sender_phone,
+            sender_name=sender_name,
         )
         .on_conflict_do_nothing(index_elements=["source_id", "telegram_message_id"])
         .returning(Message.id)
@@ -44,6 +50,9 @@ async def create_match_once(
     search_id: int,
     source_id: int,
     message_id: int,
+    matched_keyword: str | None = None,
+    match_score: int | None = None,
+    match_reason: str | None = None,
 ) -> Match | None:
     stmt = (
         pg_insert(Match)
@@ -52,6 +61,9 @@ async def create_match_once(
             search_id=search_id,
             source_id=source_id,
             message_id=message_id,
+            matched_keyword=matched_keyword,
+            match_score=match_score,
+            match_reason=match_reason,
         )
         .on_conflict_do_nothing(index_elements=["search_id", "message_id"])
         .returning(Match.id)

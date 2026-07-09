@@ -9,12 +9,16 @@ from app.db.models import (
     DailyStats,
     Favorite,
     Match,
+    MatchFeedback,
     Search,
     SearchKeyword,
     SearchMinusWord,
     SearchSource,
     Source,
     User,
+    Favorite,
+    Message,
+    NotificationDelivery,
 )
 
 
@@ -94,6 +98,42 @@ class AdminSearchExportRow:
     keywords: list[str]
     minus_words: list[str]
     sources: list[AdminSourceExportItem]
+
+
+@dataclass(frozen=True)
+class AdminMatchExportRow:
+    match_id: int
+    match_created_at: object
+    is_hidden: bool
+    matched_keyword: str | None
+    match_score: int | None
+    match_reason: str | None
+    user_id: int
+    telegram_user_id: int
+    username: str | None
+    first_name: str | None
+    user_is_blocked: bool
+    search_id: int
+    search_title: str
+    search_is_active: bool
+    source_id: int
+    source_title: str
+    source_input_ref: str
+    source_status: str
+    message_id: int
+    telegram_message_id: int
+    telegram_date: object
+    message_url: str | None
+    sender_username: str | None
+    sender_phone: str | None
+    sender_name: str | None
+    message_text: str
+    notification_status: str | None
+    notification_attempts: int | None
+    notification_last_error: str | None
+    notification_sent_at: object
+    feedback_relevant: bool | None
+    is_favorite: bool
 
 
 async def get_user_stats(session: AsyncSession, *, user_id: int) -> UserStats:
@@ -352,6 +392,101 @@ async def list_admin_search_export_details(
             ),
         )
     return rows
+
+
+async def list_admin_match_export_details(
+    session: AsyncSession,
+    *,
+    limit: int = 10000,
+) -> list[AdminMatchExportRow]:
+    """Return detailed match/message rows for the admin Excel export."""
+    result = await session.execute(
+        select(
+            Match.id,
+            Match.created_at,
+            Match.is_hidden,
+            Match.matched_keyword,
+            Match.match_score,
+            Match.match_reason,
+            User.id,
+            User.telegram_user_id,
+            User.username,
+            User.first_name,
+            User.is_blocked,
+            Search.id,
+            Search.title,
+            Search.is_active,
+            Source.id,
+            Source.title,
+            Source.input_ref,
+            Source.access_status,
+            Message.id,
+            Message.telegram_message_id,
+            Message.telegram_date,
+            Message.url,
+            Message.sender_username,
+            Message.sender_phone,
+            Message.sender_name,
+            Message.text,
+            NotificationDelivery.status,
+            NotificationDelivery.attempts,
+            NotificationDelivery.last_error,
+            NotificationDelivery.sent_at,
+            MatchFeedback.is_relevant,
+            Favorite.id,
+        )
+        .select_from(Match)
+        .join(User, User.id == Match.user_id)
+        .join(Search, Search.id == Match.search_id)
+        .join(Source, Source.id == Match.source_id)
+        .join(Message, Message.id == Match.message_id)
+        .outerjoin(NotificationDelivery, NotificationDelivery.match_id == Match.id)
+        .outerjoin(
+            MatchFeedback,
+            (MatchFeedback.match_id == Match.id) & (MatchFeedback.user_id == Match.user_id),
+        )
+        .outerjoin(Favorite, (Favorite.match_id == Match.id) & (Favorite.user_id == Match.user_id))
+        .order_by(Match.created_at.desc())
+        .limit(limit),
+    )
+
+    return [
+        AdminMatchExportRow(
+            match_id=row[0],
+            match_created_at=row[1],
+            is_hidden=bool(row[2]),
+            matched_keyword=row[3],
+            match_score=row[4],
+            match_reason=row[5],
+            user_id=row[6],
+            telegram_user_id=row[7],
+            username=row[8],
+            first_name=row[9],
+            user_is_blocked=bool(row[10]),
+            search_id=row[11],
+            search_title=row[12],
+            search_is_active=bool(row[13]),
+            source_id=row[14],
+            source_title=row[15],
+            source_input_ref=row[16],
+            source_status=row[17],
+            message_id=row[18],
+            telegram_message_id=row[19],
+            telegram_date=row[20],
+            message_url=row[21],
+            sender_username=row[22],
+            sender_phone=row[23],
+            sender_name=row[24],
+            message_text=row[25],
+            notification_status=row[26],
+            notification_attempts=row[27],
+            notification_last_error=row[28],
+            notification_sent_at=row[29],
+            feedback_relevant=row[30],
+            is_favorite=row[31] is not None,
+        )
+        for row in result.all()
+    ]
 
 
 async def get_global_stats(session: AsyncSession) -> GlobalStats:

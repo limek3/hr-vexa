@@ -7,7 +7,11 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.db.repositories.stats import AdminSearchExportRow, AdminUserSearchReportRow
+from app.db.repositories.stats import (
+    AdminMatchExportRow,
+    AdminSearchExportRow,
+    AdminUserSearchReportRow,
+)
 
 HEADER_FILL = PatternFill("solid", fgColor="2B2142")
 HEADER_FONT = Font(color="FFFFFF", bold=True)
@@ -27,6 +31,8 @@ def _safe_text(value: object) -> object:
     if isinstance(value, bool):
         return "да" if value else "нет"
     if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.replace(tzinfo=None)
         return value
     text = ILLEGAL_EXCEL_CHARS.sub("", str(value))
     if text.startswith(("=", "+", "-", "@")):
@@ -210,6 +216,72 @@ def _source_rows(search_rows: list[AdminSearchExportRow]) -> list[list[object]]:
     return rows
 
 
+def _feedback_label(value: bool | None) -> str:
+    if value is True:
+        return "подходит"
+    if value is False:
+        return "не подходит"
+    return ""
+
+
+def _match_rows(match_rows: list[AdminMatchExportRow]) -> list[list[object]]:
+    return [
+        [
+            row.match_id,
+            row.match_created_at,
+            row.telegram_user_id,
+            row.username,
+            row.first_name,
+            row.user_is_blocked,
+            row.search_id,
+            row.search_title,
+            _status(row.search_is_active),
+            row.source_title,
+            row.source_input_ref,
+            row.source_status,
+            row.matched_keyword,
+            row.match_score,
+            row.match_reason,
+            row.sender_username,
+            row.sender_phone,
+            row.sender_name,
+            row.message_url,
+            row.telegram_date,
+            row.message_text,
+            row.notification_status,
+            row.notification_attempts,
+            row.notification_last_error,
+            row.notification_sent_at,
+            _feedback_label(row.feedback_relevant),
+            row.is_favorite,
+            row.is_hidden,
+        ]
+        for row in match_rows
+    ]
+
+
+def _message_rows(match_rows: list[AdminMatchExportRow]) -> list[list[object]]:
+    messages: dict[tuple[int, int], AdminMatchExportRow] = {}
+    for row in match_rows:
+        messages.setdefault((row.source_id, row.telegram_message_id), row)
+    return [
+        [
+            row.message_id,
+            row.telegram_message_id,
+            row.telegram_date,
+            row.source_id,
+            row.source_title,
+            row.source_input_ref,
+            row.sender_username,
+            row.sender_phone,
+            row.sender_name,
+            row.message_url,
+            row.message_text,
+        ]
+        for row in messages.values()
+    ]
+
+
 def _keyword_rows(search_rows: list[AdminSearchExportRow]) -> list[list[object]]:
     rows: list[list[object]] = []
     for search in search_rows:
@@ -257,7 +329,9 @@ def _prepare_sheet(
 def build_admin_users_workbook(
     report_rows: list[AdminUserSearchReportRow],
     search_rows: list[AdminSearchExportRow],
+    match_rows: list[AdminMatchExportRow] | None = None,
 ) -> bytes:
+    match_rows = match_rows or []
     wb = Workbook()
     ws = wb.active
     ws.title = "Сводка"
@@ -272,12 +346,8 @@ def build_admin_users_workbook(
             if row.search_id is not None and row.search_is_active
         },
     )
-    matches_today = sum(
-        row.search_matches_today for row in report_rows if row.search_id is not None
-    )
-    matches_total = sum(
-        row.search_matches_total for row in report_rows if row.search_id is not None
-    )
+    matches_today = sum(row.search_matches_today for row in report_rows if row.search_id is not None)
+    matches_total = sum(row.search_matches_total for row in report_rows if row.search_id is not None)
     _prepare_sheet(
         ws,
         "Сводка Vexa",
@@ -290,6 +360,7 @@ def build_admin_users_workbook(
             ["Поисков включено", active_searches_count],
             ["Совпадений сегодня", matches_today],
             ["Совпадений всего", matches_total],
+            ["Строк в листе Совпадения", len(match_rows)],
             ["Сгенерировано", datetime.now()],
         ],
     )
@@ -368,6 +439,65 @@ def build_admin_users_workbook(
             "Связь активна",
         ],
         _source_rows(search_rows),
+    )
+
+    matches_ws = wb.create_sheet("Совпадения")
+    _prepare_sheet(
+        matches_ws,
+        "Совпадения",
+        "Одна строка = одно найденное совпадение.",
+        [
+            "Match ID",
+            "Дата совпадения",
+            "Telegram ID",
+            "Username",
+            "Имя",
+            "Бот заблокирован",
+            "Search ID",
+            "Название поиска",
+            "Статус поиска",
+            "Источник",
+            "Ссылка источника",
+            "Статус источника",
+            "Сработавший ключ",
+            "Оценка",
+            "Почему найдено",
+            "Telegram автора",
+            "Телефон автора",
+            "Имя автора",
+            "Ссылка на сообщение",
+            "Дата сообщения",
+            "Текст сообщения",
+            "Статус уведомления",
+            "Попыток",
+            "Ошибка доставки",
+            "Отправлено",
+            "Оценка пользователя",
+            "В избранном",
+            "Скрыто",
+        ],
+        _match_rows(match_rows),
+    )
+
+    messages_ws = wb.create_sheet("Сообщения")
+    _prepare_sheet(
+        messages_ws,
+        "Сообщения",
+        "Уникальные Telegram-сообщения, по которым были совпадения.",
+        [
+            "Message ID",
+            "Telegram Message ID",
+            "Дата сообщения",
+            "Source ID",
+            "Источник",
+            "Ссылка источника",
+            "Telegram автора",
+            "Телефон автора",
+            "Имя автора",
+            "Ссылка на сообщение",
+            "Текст сообщения",
+        ],
+        _message_rows(match_rows),
     )
 
     keywords_ws = wb.create_sheet("Ключи")

@@ -142,6 +142,9 @@ class Message(Base):
     telegram_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     text: Mapped[str] = mapped_column(Text, default="")
     url: Mapped[str | None] = mapped_column(String(1024))
+    sender_username: Mapped[str | None] = mapped_column(String(255))
+    sender_phone: Mapped[str | None] = mapped_column(String(64))
+    sender_name: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     source: Mapped[Source] = relationship(back_populates="messages")
@@ -158,6 +161,9 @@ class Match(Base):
     message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    matched_keyword: Mapped[str | None] = mapped_column(String(255))
+    match_score: Mapped[int | None] = mapped_column(Integer)
+    match_reason: Mapped[str | None] = mapped_column(Text)
 
 
 class NotificationDelivery(Base, TimestampMixin):
