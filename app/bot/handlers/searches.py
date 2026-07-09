@@ -15,6 +15,7 @@ from app.bot.keyboards.inline import (
 )
 from app.bot.keyboards.labels import CANCEL, MY_SEARCHES
 from app.bot.keyboards.menu import main_menu
+from app.bot.messages import KEYWORD_BASE_HINT
 from app.bot.states.edit_search import EditSearch
 from app.db.repositories.searches import (
     delete_user_search,
@@ -473,6 +474,7 @@ async def handle_search_action(
                 f"{heading('Новые ключевые слова')}\n"
                 "Отправьте полный новый список. "
                 "Каждое слово или фразу лучше писать с новой строки.\n\n"
+                f"{KEYWORD_BASE_HINT}\n\n"
                 "<b>Сейчас</b>\n"
                 f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),
@@ -495,6 +497,7 @@ async def handle_search_action(
                 f"{heading('Новые минус-слова')}\n"
                 "Отправьте полный новый список. "
                 "Чтобы очистить минус-слова, отправьте один символ: <code>-</code>.\n\n"
+                f"{KEYWORD_BASE_HINT}\n\n"
                 "<b>Сейчас</b>\n"
                 f"<i>{compact_values(current)}</i>",
                 reply_markup=edit_cancel(search.id),

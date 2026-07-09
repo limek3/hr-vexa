@@ -16,4 +16,4 @@ async def start(message: Message, session: AsyncSession) -> None:
         return
 
     await get_or_create_user(session, message.from_user)
-    await message.answer(WELCOME_TEXT, reply_markup=main_menu())
+    await message.answer(WELCOME_TEXT, reply_markup=main_menu(), disable_web_page_preview=True)

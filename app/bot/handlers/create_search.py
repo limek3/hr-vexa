@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot.formatting import heading, metric, step_line, text_value
 from app.bot.keyboards.labels import CANCEL, LEGACY_NEW_SEARCH, NEW_SEARCH, SKIP
 from app.bot.keyboards.menu import cancel_menu, main_menu, skip_menu
+from app.bot.messages import KEYWORD_BASE_HINT
 from app.bot.states.create_search import CreateSearch
 from app.db.repositories.searches import create_search
 from app.db.repositories.users import get_or_create_user
@@ -62,9 +63,11 @@ async def set_title(message: Message, state: FSMContext) -> None:
         f"{step_line(2, 4, 'ключевые слова')}\n\n"
         "Пишите слова или фразы, которые должны быть в нужном сообщении.\n"
         "Лучше каждую фразу с новой строки.\n\n"
+        f"{KEYWORD_BASE_HINT}\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>сдам квартиру\nнужен ремонт\nищу поставщика\nотзыв vexa\nкурьер</blockquote>",
         reply_markup=cancel_menu(),
+        disable_web_page_preview=True,
     )
 
 
@@ -86,10 +89,12 @@ async def set_keywords(message: Message, state: FSMContext) -> None:
         "\n"
         f"{step_line(3, 4, 'минус-слова')}\n\n"
         "Если в сообщении есть минус-слово, уведомление не придет.\n\n"
+        f"{KEYWORD_BASE_HINT}\n\n"
         "<b>Примеры</b>\n"
         "<blockquote>реклама\nфраншиза\nобучение\nнеактуально</blockquote>\n\n"
         "Если минус-слова не нужны, нажмите <b>Пропустить</b>.",
         reply_markup=skip_menu(),
+        disable_web_page_preview=True,
     )
 
 

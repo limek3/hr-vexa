@@ -33,7 +33,7 @@ def _quiet_hours_text(settings: UserSettings) -> str:
 @router.message(Command("help"))
 @router.message(lambda message: message.text == HELP)
 async def help_message(message: Message) -> None:
-    await message.answer(HELP_TEXT, reply_markup=main_menu())
+    await message.answer(HELP_TEXT, reply_markup=main_menu(), disable_web_page_preview=True)
 
 
 @router.message(lambda message: message.text == STATISTICS)
