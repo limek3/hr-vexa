@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import desc, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -155,3 +155,22 @@ async def save_match_feedback(
     )
     await session.execute(stmt)
     return True
+
+
+async def list_match_feedback_examples(
+    session: AsyncSession,
+    *,
+    search_id: int,
+    limit: int = 80,
+) -> list[tuple[str, bool]]:
+    """Return recent labeled messages used by the per-search template filter."""
+    result = await session.execute(
+        select(MatchFeedback.message_text, MatchFeedback.is_relevant)
+        .where(
+            MatchFeedback.search_id == search_id,
+            MatchFeedback.message_text != "",
+        )
+        .order_by(desc(MatchFeedback.updated_at), desc(MatchFeedback.id))
+        .limit(limit),
+    )
+    return [(text, is_relevant) for text, is_relevant in result.all()]

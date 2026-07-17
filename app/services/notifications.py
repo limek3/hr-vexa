@@ -82,9 +82,19 @@ def match_keyboard(
         ],
     ]
     if username:
-        buttons.insert(0, [button(text="Написать в ЛС", style="success", url=_private_chat_url(username, draft))])
+        buttons.insert(
+            0,
+            [button(text="Написать в ЛС", style="success", url=_private_chat_url(username, draft))],
+        )
     else:
-        buttons.insert(0, [button(text="Написать в ЛС", style="success", callback_data=f"reply_draft:{match_id}")])
+        buttons.insert(
+            0,
+            [
+                button(
+                    text="Написать в ЛС", style="success", callback_data=f"reply_draft:{match_id}"
+                )
+            ],
+        )
     if url:
         insert_at = 1
         buttons.insert(insert_at, [button(text="Открыть источник", url=url)])
@@ -111,13 +121,16 @@ async def send_candidate_notification(
     phone_line = phone if phone else "не найден"
     name_line = f"\n{text_value('Автор', sender_name)}" if sender_name else ""
     draft = _reply_draft(search.title)
+    # The stored decision may include per-search feedback learning, so prefer
+    # it over a fresh context-free analysis when formatting the notification.
     analysis = analyze_match(
         message.text,
         [keyword.value for keyword in search.keywords],
         [minus_word.value for minus_word in search.minus_words],
     )
-    keyword_line = analysis.keyword or "не определен"
-    reason_line = html(analysis.reason)
+    keyword_line = match.matched_keyword or analysis.keyword or "не определен"
+    match_score = match.match_score if match.match_score is not None else analysis.score
+    reason_line = html(match.match_reason or analysis.reason)
 
     await bot.send_message(
         chat_id=user.telegram_user_id,
@@ -128,7 +141,7 @@ async def send_candidate_notification(
             f"{text_value('Поиск', search.title)}\n"
             f"{text_value('Источник', source.title or source.input_ref)}\n"
             f"{text_value('Ключ', keyword_line)}\n"
-            f"{metric('Оценка', f'{analysis.score}%')}\n\n"
+            f"{metric('Оценка', f'{match_score}%')}\n\n"
             "<b>Контакты</b>\n"
             f"{text_value('Telegram', telegram_line)}\n"
             f"{text_value('Телефон', phone_line)}"
@@ -216,10 +229,18 @@ async def safe_send_candidate_notification(
             return "blocked"
         except TelegramBadRequest as exc:
             error_text = str(exc).lower()
-            if "chat not found" in error_text or "user is deactivated" in error_text or "bot was blocked" in error_text:
+            if (
+                "chat not found" in error_text
+                or "user is deactivated" in error_text
+                or "bot was blocked" in error_text
+            ):
                 user.is_blocked = True
                 await session.flush()
-                logger.warning("Notification blocked, bad request indicates blocked user: %s | error=%s", context, exc)
+                logger.warning(
+                    "Notification blocked, bad request indicates blocked user: %s | error=%s",
+                    context,
+                    exc,
+                )
                 return "blocked"
             logger.warning("Notification failed with bad request: %s | error=%s", context, exc)
             return "failed"

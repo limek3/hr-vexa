@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from telethon import events
 
 from app.db.models import Message, Source, User
-from app.db.repositories.messages import create_match_once, increment_daily_stats, save_message_if_new
+from app.db.repositories.messages import (
+    create_match_once,
+    increment_daily_stats,
+    list_match_feedback_examples,
+    save_message_if_new,
+)
 from app.db.repositories.notification_deliveries import enqueue_notification_once
 from app.db.repositories.searches import list_active_searches_for_source
 from app.db.repositories.sources import get_source_by_telegram_id
@@ -24,7 +29,9 @@ def message_url(source: Source, telegram_message_id: int) -> str | None:
     return None
 
 
-async def handle_new_message(event: events.NewMessage.Event, session: AsyncSession, bot: Bot) -> None:
+async def handle_new_message(
+    event: events.NewMessage.Event, session: AsyncSession, bot: Bot
+) -> None:
     chat = await event.get_chat()
     telegram_id = getattr(chat, "id", None)
     if telegram_id is None:
@@ -66,6 +73,23 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
         if not analysis.matched:
             continue
 
+        feedback_examples = await list_match_feedback_examples(session, search_id=search.id)
+        if feedback_examples:
+            analysis = analyze_match(
+                raw_text,
+                keywords,
+                minus_words,
+                feedback_examples=feedback_examples,
+            )
+            if not analysis.matched:
+                logger.info(
+                    "Match rejected by search feedback: search_id=%s source_id=%s reason=%s",
+                    search.id,
+                    source.id,
+                    analysis.reason,
+                )
+                continue
+
         match = await create_match_once(
             session,
             user_id=search.user_id,
@@ -90,7 +114,11 @@ async def handle_new_message(event: events.NewMessage.Event, session: AsyncSessi
         if user and message:
             if await notifications_paused_for_user(session, user_id=user.id):
                 await enqueue_notification_once(session, user_id=user.id, match_id=match.id)
-                logger.info("Notification queued by quiet hours: search_id=%s match_id=%s", search.id, match.id)
+                logger.info(
+                    "Notification queued by quiet hours: search_id=%s match_id=%s",
+                    search.id,
+                    match.id,
+                )
                 continue
 
             if user.is_blocked:

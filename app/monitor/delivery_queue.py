@@ -10,6 +10,7 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, Teleg
 
 from app.bot.formatting import heading, metric
 from app.core.config import get_settings
+from app.db.repositories.messages import list_match_feedback_examples
 from app.db.repositories.notification_deliveries import (
     PendingNotification,
     cleanup_old_deliveries,
@@ -124,6 +125,18 @@ async def deliver_pending_notifications(bot: Bot) -> None:
                 [keyword.value for keyword in item.search.keywords],
                 [minus_word.value for minus_word in item.search.minus_words],
             )
+            if current_analysis.matched:
+                feedback_examples = await list_match_feedback_examples(
+                    session,
+                    search_id=item.search.id,
+                )
+                if feedback_examples:
+                    current_analysis = analyze_match(
+                        item.message.text,
+                        [keyword.value for keyword in item.search.keywords],
+                        [minus_word.value for minus_word in item.search.minus_words],
+                        feedback_examples=feedback_examples,
+                    )
             if not current_analysis.matched:
                 await mark_notification_filtered(
                     session,

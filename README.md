@@ -92,8 +92,14 @@ For searches aimed at candidates, Vexa automatically rejects employer vacancies,
 order-board templates, recruiting bots, referral posts, advertising, and channel spam.
 The matcher keeps phrase order, respects word boundaries, ignores URLs/usernames/hashtags
 for positive keywords, and uses only conservative, directional synonym groups. User-defined
-minus words are still applied. Existing quiet-hours notifications are rechecked before delivery,
-so matches rejected by the new rules are not sent from an old queue.
+minus words are still applied. Candidate searches additionally require a real first-person
+job-seeking signal, so a profession name or the word `работа` alone is not sufficient.
+
+The `Подходит` / `Не подходит` buttons also affect future filtering for that particular search.
+Vexa compares new messages with recent labeled messages and recognizes repeated templates while
+ignoring changing dates, prices, contacts, and other small details. A short rejected phrase does
+not become a global minus-word. Existing quiet-hours notifications are rechecked against both the
+current rules and search feedback before delivery, so stale noisy matches are removed from the queue.
 
 ## Local Setup
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 TOKEN_RE = re.compile(r"[0-9a-zа-яё]+", re.IGNORECASE)
 URL_RE = re.compile(r"(?:https?://|www\.)\S+|tg://\S+", re.IGNORECASE)
@@ -179,8 +179,14 @@ CANDIDATE_QUALIFIER_PATTERNS = (
     re.compile(r"\bстаж\s+вождения\b"),
 )
 
+JOB_SEARCH_MODIFIER = (
+    r"(?:себе|срочно|новую|постоянную|официальную|стабильную|основную|"
+    r"временную|разовую|удаленную|вечернюю|ночную|дневную|хорошую)"
+)
+
 ROLE_PATTERN = (
-    r"(?:человек|люд(?:и|ей)?|сотрудник(?:а|ов|и)?|работник(?:а|ов|и)?|"
+    r"(?:человек(?:а)?|люд(?:и|ей)?|персонал|исполнител(?:ь|я|ей|и)|"
+    r"сотрудник(?:а|ов|и)?|работник(?:а|ов|и)?|мастер(?:а|ов|ы)?|"
     r"грузчик(?:а|ов|и)?|разнорабоч(?:ий|их)|комплектовщик(?:а|ов|и)?|"
     r"кладовщик(?:а|ов|и)?|упаковщик(?:а|ов|и)?|фасовщик(?:а|ов|и)?|"
     r"водител(?:ь|я|ей|и)|курьер(?:а|ов|ы)?|повар(?:а|ов|ы)?|"
@@ -190,22 +196,48 @@ ROLE_PATTERN = (
 )
 
 CANDIDATE_SIGNALS: tuple[tuple[re.Pattern[str], int, str], ...] = (
-    (re.compile(r"\bищу(?:\s+[a-zа-яё-]+){0,3}\s+(?:работу|подработку|вахту|место)\b"), 14, "ищет работу"),
-    (re.compile(r"\b(?:мне\s+)?нужна(?:\s+[a-zа-яё-]+){0,2}\s+(?:работа|подработка)\b"), 14, "нужна работа"),
+    (
+        re.compile(
+            rf"\b(?:я\s+)?ищу(?:\s+{JOB_SEARCH_MODIFIER}){{0,3}}\s+"
+            rf"(?:работу|подработку|вахту|место)\b"
+        ),
+        14,
+        "ищет работу",
+    ),
+    (
+        re.compile(r"\b(?:мне\s+)?нужна(?:\s+[a-zа-яё-]+){0,2}\s+(?:работа|подработка)\b"),
+        14,
+        "нужна работа",
+    ),
     (re.compile(r"\b(?:в\s+)?поиске\s+(?:работы|подработки|вахты)\b"), 12, "в поиске работы"),
+    (
+        re.compile(
+            rf"\b(?:мы|бригада|нас\s+\d+)\b.{{0,35}}\bищем"
+            rf"(?:\s+{JOB_SEARCH_MODIFIER}){{0,2}}\s+(?:работу|подработку|вахту)\b"
+        ),
+        14,
+        "бригада ищет работу",
+    ),
     (
         re.compile(r"\b(?:готов|готова)\s+(?:выйти|приступить|работать|на\s+вахту)\b"),
         10,
         "готов приступить",
     ),
     (re.compile(r"\b(?:могу|можем)\s+приступить\b"), 9, "может приступить"),
+    (re.compile(r"\b(?:могу|можем)\s+(?:выйти|работать)\b"), 9, "может выйти на работу"),
     (
         re.compile(r"\b(?:рассматриваю|рассмотрю)\s+(?:работу|подработку|вакансии|предложения)\b"),
         9,
         "рассматривает предложения",
     ),
-    (re.compile(r"\b(?:есть|имею)\s+опыт\b"), 6, "есть опыт"),
-    (re.compile(r"\b(?:работал|работала|работаю)\s+(?:как\s+)?[a-zа-яё-]{4,}\b"), 6, "опыт работы"),
+    (re.compile(r"\b(?:у\s+меня\s+есть|имею)\s+опыт\b"), 9, "есть опыт"),
+    (
+        re.compile(
+            r"(?:^|[.!?\n]\s*)(?:я\s+)?(?:работал|работала|работаю)\s+(?:как\s+)?[a-zа-яё-]{4,}\b"
+        ),
+        9,
+        "личный опыт работы",
+    ),
     (
         re.compile(rf"\b{ROLE_PATTERN}\s+ищет\s+(?:работу|подработку|вахту)\b"),
         14,
@@ -216,7 +248,12 @@ CANDIDATE_SIGNALS: tuple[tuple[re.Pattern[str], int, str], ...] = (
 
 EMPLOYER_SIGNALS: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     (re.compile(r"\bсоздано\s+заказов\s*:\s*\d+"), 20, "шаблон биржи заказов", True),
-    (re.compile(r"\bзарегистрирован\s*:\s*\d+\s+(?:день|дня|дней)"), 15, "карточка заказчика", True),
+    (
+        re.compile(r"\bзарегистрирован\s*:\s*\d+\s+(?:день|дня|дней)"),
+        15,
+        "карточка заказчика",
+        True,
+    ),
     (re.compile(r"\bсрочн(?:ая|ую)\s+заявк"), 14, "заявка работодателя", True),
     (re.compile(r"\bтребу(?:ется|ются)\b"), 14, "требуются сотрудники", True),
     (
@@ -232,6 +269,32 @@ EMPLOYER_SIGNALS: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
         re.compile(rf"\bищем\s+(?:\d+[-–—х ]*\s*)?{ROLE_PATTERN}\b"),
         14,
         "работодатель ищет сотрудников",
+        True,
+    ),
+    (
+        re.compile(
+            rf"\b(?:я\s+)?ищу\s+(?:(?:пару|несколько|\d+)\s+)?{ROLE_PATTERN}"
+            rf"(?:\s+на\s+(?:работу|подработку|вахту))?\b"
+        ),
+        16,
+        "работодатель ищет исполнителей",
+        True,
+    ),
+    (
+        re.compile(
+            r"\bкто\s+ищет\s+(?:работу|подработку|ворк)\b.{0,80}"
+            r"\b(?:дам|предлагаю|есть)\s+(?:работу|подработку|ворк)\b",
+            re.DOTALL,
+        ),
+        18,
+        "предложение работы соискателям",
+        True,
+    ),
+    (re.compile(r"\b(?:дам|предлагаю)\s+(?:работу|подработку)\b"), 14, "предложение работы", True),
+    (
+        re.compile(r"\bнабира(?:ю|ем)\s+(?:людей|сотрудников|персонал|команду)\b"),
+        14,
+        "набор людей",
         True,
     ),
     (re.compile(r"\bна\s+(?:постоянную\s+)?работу\s+ищем\b"), 14, "набор на работу", True),
@@ -258,17 +321,53 @@ EMPLOYER_SIGNALS: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     ),
     (re.compile(r"\bграфик\s*(?:работы)?\s*:?\s*\d+\s*/\s*\d+"), 5, "рабочий график", False),
     (re.compile(r"\b(?:для\s+записи|по\s+всем\s+вопросам)\b"), 6, "призыв откликнуться", False),
-    (re.compile(r"\b(?:пишите|пишем|написать)\s+(?:в\s+)?(?:лс|личк|менеджер)\b"), 4, "контакт для отклика", False),
+    (
+        re.compile(r"\bподробност(?:и|ей)\s+(?:в\s+)?(?:лс|личк)\b"),
+        6,
+        "подробности для отклика",
+        False,
+    ),
+    (
+        re.compile(r"\b(?:пишите|пишем|написать)\s+(?:в\s+)?(?:лс|личк|менеджер)\b"),
+        4,
+        "контакт для отклика",
+        False,
+    ),
     (re.compile(r"\bотдел\s+кадров\b"), 8, "отдел кадров", False),
     (re.compile(r"\bместа\s+ограничены\b"), 6, "массовый найм", False),
     (re.compile(r"\b(?:паспорт\s+(?:рф|с\s+собой)|18\+|самозанят)"), 4, "условия допуска", False),
-    (re.compile(r"\b(?:бесплатн[a-zа-яё-]*\s+)?(?:проживание|общежитие|хостел)\b"), 4, "проживание от работодателя", False),
-    (re.compile(r"\b(?:бесплатн[a-zа-яё-]*\s+)?(?:обед|питание)[a-zа-яё-]*\b"), 3, "питание от работодателя", False),
+    (
+        re.compile(r"\b(?:бесплатн[a-zа-яё-]*\s+)?(?:проживание|общежитие|хостел)\b"),
+        4,
+        "проживание от работодателя",
+        False,
+    ),
+    (
+        re.compile(r"\b(?:бесплатн[a-zа-яё-]*\s+)?(?:обед|питание)[a-zа-яё-]*\b"),
+        3,
+        "питание от работодателя",
+        False,
+    ),
     (re.compile(r"\bвыдается\s+(?:спец[. ]*)?форма\b"), 3, "выдача формы", False),
-    (re.compile(r"\b(?:мужчины|женщины)\b.{0,45}\b(?:рф|рб|снг)\b", re.DOTALL), 5, "требования к кандидатам", False),
+    (
+        re.compile(r"\b(?:мужчины|женщины)\b.{0,45}\b(?:рф|рб|снг)\b", re.DOTALL),
+        5,
+        "требования к кандидатам",
+        False,
+    ),
     (re.compile(r"\bдо\s+\d{2}\s+лет\b"), 3, "возрастное требование", False),
-    (re.compile(r"\b(?:медкнижка|санкнижка|медицинская\s+книжка)\b"), 4, "требование документов", False),
-    (re.compile(r"\b(?:смены?|график)\b.{0,35}\b(?:день|ночь|\d+\s*/\s*\d+)\b", re.DOTALL), 4, "описание смен", False),
+    (
+        re.compile(r"\b(?:медкнижка|санкнижка|медицинская\s+книжка)\b"),
+        4,
+        "требование документов",
+        False,
+    ),
+    (
+        re.compile(r"\b(?:смены?|график)\b.{0,35}\b(?:день|ночь|\d+\s*/\s*\d+)\b", re.DOTALL),
+        4,
+        "описание смен",
+        False,
+    ),
     (re.compile(r'\b(?:ооо|ип)\s+[a-zа-яё0-9"«]'), 4, "организация-работодатель", False),
     (re.compile(r"\bразместил[аи]?\s+объявлени"), 4, "размещенное объявление", False),
     (re.compile(r"\b(?:адрес|ближайшее\s+метро|время)\s*:"), 2, "структурированная заявка", False),
@@ -280,7 +379,11 @@ SPAM_SIGNALS: tuple[tuple[re.Pattern[str], int, str], ...] = (
     (re.compile(r"\bпо\s+вопросам\s+рекламы\b"), 15, "реклама"),
     (re.compile(r"\b(?:переходи|переходите)\s+в\s+группу\b"), 10, "перевод в другую группу"),
     (re.compile(r"\b(?:подпишись|подпишитесь)\b"), 8, "призыв подписаться"),
-    (re.compile(r"\b(?:продвижение|раскрутка|размещение\s+объявлени)\b"), 10, "продвижение/размещение"),
+    (
+        re.compile(r"\b(?:продвижение|раскрутка|размещение\s+объявлени)\b"),
+        10,
+        "продвижение/размещение",
+    ),
     (re.compile(r"\bрекламное\s+агентство\b"), 12, "рекламное агентство"),
     (re.compile(r"\b(?:партнерск|онлайн)[a-zа-яё-]*\s+задани"), 10, "партнерские онлайн-задания"),
     (re.compile(r"\bприводить\s+новых\s+людей\b"), 10, "реферальный набор"),
@@ -290,9 +393,66 @@ SPAM_SIGNALS: tuple[tuple[re.Pattern[str], int, str], ...] = (
     (re.compile(r"(?<!\w)#помогу\b"), 8, "рекламный хештег"),
     (re.compile(r"\bфинансов(?:ых|ые)\s+трудност"), 10, "сомнительное финансовое предложение"),
     (re.compile(r"\bза\s+выполнени[ея]\s+задач\b"), 10, "оплата за задания"),
-    (re.compile(r"\b(?:заходите|заходи|вступайте|вступай)\s+в\b"), 10, "приглашение в стороннюю группу"),
-    (re.compile(r"(?:t\.me|telegram\.me)/[a-z0-9_]*bot\?start=", re.IGNORECASE), 12, "реферальная ссылка бота"),
+    (
+        re.compile(r"\b(?:заходите|заходи|вступайте|вступай)\s+в\b"),
+        10,
+        "приглашение в стороннюю группу",
+    ),
+    (
+        re.compile(r"(?:t\.me|telegram\.me)/[a-z0-9_]*bot\?start=", re.IGNORECASE),
+        12,
+        "реферальная ссылка бота",
+    ),
     (re.compile(r"invite\.viber\.com", re.IGNORECASE), 12, "приглашение в Viber"),
+    (
+        re.compile(r"\bвыплат(?:а|ы)\s+(?:каждый|ежедневно).{0,35}\b(?:день|сутки)\b", re.DOTALL),
+        8,
+        "обещание ежедневных выплат",
+    ),
+    (re.compile(r"\bобслуживани[ея]\s+оборудования\b"), 6, "сомнительная подработка"),
+)
+
+# Feedback comparison deliberately ignores generic glue words and changing
+# dates/prices. It is intended to recognize recurring Telegram templates, not
+# to turn one rejected two-word message into a global minus-word.
+FEEDBACK_STOP_WORDS = frozenset(
+    {
+        "а",
+        "без",
+        "был",
+        "была",
+        "были",
+        "в",
+        "вам",
+        "вас",
+        "все",
+        "для",
+        "до",
+        "его",
+        "ее",
+        "если",
+        "же",
+        "за",
+        "и",
+        "или",
+        "из",
+        "к",
+        "как",
+        "мы",
+        "на",
+        "не",
+        "но",
+        "о",
+        "от",
+        "по",
+        "при",
+        "с",
+        "со",
+        "так",
+        "у",
+        "что",
+        "это",
+    }
 )
 
 
@@ -345,6 +505,64 @@ def _stem_token(token: str) -> str:
     if token.endswith("ь") and len(token) >= 6:
         return token[:-1]
     return token
+
+
+def _feedback_signature(value: str) -> set[str]:
+    cleaned = URL_RE.sub(" ", value)
+    cleaned = USERNAME_RE.sub(" ", cleaned)
+    signature: set[str] = set()
+    for token in _tokens(cleaned):
+        if token.isdigit():
+            signature.add("#")
+            continue
+        if len(token) < 3 or token in FEEDBACK_STOP_WORDS:
+            continue
+        signature.add(_stem_token(token))
+    return signature
+
+
+def _feedback_similarity(left: str, right: str) -> float:
+    if _plain_text(left) == _plain_text(right):
+        return 1.0
+
+    left_tokens = _feedback_signature(left)
+    right_tokens = _feedback_signature(right)
+    if min(len(left_tokens), len(right_tokens)) < 4:
+        return 0.0
+
+    shared = len(left_tokens & right_tokens)
+    if shared < 4:
+        return 0.0
+
+    containment = shared / min(len(left_tokens), len(right_tokens))
+    jaccard = shared / len(left_tokens | right_tokens)
+    if shared < 6 and containment < 0.8:
+        return 0.0
+    return max(jaccard, containment * 0.9)
+
+
+def _feedback_decision(
+    text: str,
+    examples: Iterable[tuple[str, bool]],
+) -> tuple[bool | None, int]:
+    best_relevant = 0.0
+    best_irrelevant = 0.0
+    for example_text, is_relevant in examples:
+        if not example_text:
+            continue
+        similarity = _feedback_similarity(text, example_text)
+        if is_relevant:
+            best_relevant = max(best_relevant, similarity)
+        else:
+            best_irrelevant = max(best_irrelevant, similarity)
+
+    threshold = 0.74
+    margin = 0.08
+    if best_irrelevant >= threshold and best_irrelevant >= best_relevant + margin:
+        return False, round(best_irrelevant * 100)
+    if best_relevant >= threshold and best_relevant >= best_irrelevant + margin:
+        return True, round(best_relevant * 100)
+    return None, round(max(best_relevant, best_irrelevant) * 100)
 
 
 def _build_safe_alias_index() -> tuple[dict[str, set[str]], dict[str, set[str]]]:
@@ -601,10 +819,18 @@ def _message_type_analysis(text: str) -> MessageTypeAnalysis:
             spam_score,
             ", ".join(employer_reasons[:4]),
         )
-    return MessageTypeAnalysis("unknown", candidate_score, employer_score, spam_score, "нет сильных признаков")
+    return MessageTypeAnalysis(
+        "unknown", candidate_score, employer_score, spam_score, "нет сильных признаков"
+    )
 
 
-def analyze_match(text: str | None, keywords: list[str], minus_words: list[str]) -> MatchAnalysis:
+def analyze_match(
+    text: str | None,
+    keywords: list[str],
+    minus_words: list[str],
+    *,
+    feedback_examples: Iterable[tuple[str, bool]] = (),
+) -> MatchAnalysis:
     if not text:
         return MatchAnalysis(False, 0, "нет текста")
 
@@ -638,6 +864,15 @@ def analyze_match(text: str | None, keywords: list[str], minus_words: list[str])
                 minus_word=minus_word,
             )
 
+    feedback_verdict, feedback_similarity = _feedback_decision(text, feedback_examples)
+    if feedback_verdict is False:
+        return MatchAnalysis(
+            False,
+            0,
+            f"автообучение: похоже на ранее отмеченное «Не подходит» ({feedback_similarity}%)",
+            keyword=best_keyword[1],
+        )
+
     if _is_candidate_search(keywords):
         message_type = _message_type_analysis(text)
         if message_type.category in {"employer", "spam"}:
@@ -652,7 +887,25 @@ def analyze_match(text: str | None, keywords: list[str], minus_words: list[str])
                 keyword=best_keyword[1],
             )
 
+        # Generic keys such as "работа", a profession or even "ищу" are not
+        # enough on their own. Candidate searches need an actual first-person
+        # job-seeking signal. A user's positive feedback can explicitly teach
+        # the search an unusual but recurring candidate wording.
+        if message_type.category != "candidate" and feedback_verdict is not True:
+            return MatchAnalysis(
+                False,
+                0,
+                (
+                    "автофильтр: недостаточно признаков, что сообщение написал соискатель; "
+                    f"candidate={message_type.candidate_score}, "
+                    f"employer={message_type.employer_score}, spam={message_type.spam_score}"
+                ),
+                keyword=best_keyword[1],
+            )
+
     score, keyword, reason = best_keyword
+    if feedback_verdict is True:
+        reason = f"{reason}; подтверждено похожей оценкой «Подходит» ({feedback_similarity}%)"
     return MatchAnalysis(True, score, reason, keyword=keyword)
 
 
