@@ -1,92 +1,103 @@
 import asyncio
+
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-BOT_TOKEN = "8906047898:AAE_XV7f9ufKvQB_e8d_EbaTFkKIawnHepk"
+
 CHANNEL_ID = "@vexa_group"
-
 PROXY = "http://127.0.0.1:10809"
 
-text = """
 
-&#128218; <b>Учимся правильно настраивать поиски в Vexa.</b>
+text = """&#128640; <b>Большое обновление поиска в Vexa</b>
 
-Главная ошибка — писать слишком общие ключи: «работа», «склад», «грузчик». Так бот будет ловить всё подряд, включая вакансии от работодателей.
+Мы полностью пересмотрели обработку ключевых слов, синонимов и входящих сообщений.
 
-Лучше писать так, как написал бы сам кандидат: «ищу работу», «готов выйти», «есть опыт».
+Раньше объявления работодателей могли попадать в совпадения из-за слишком широкого поиска. Например, Vexa могла ошибочно считать слова «ищу», «нужен», «ищем» и «требуется» похожими.
 
-<b>Пример: разнорабочий / склад / производство</b>
+Теперь эта логика переделана.
 
-Ключи:
-<pre>ищу работу разнорабочим
-ищу подработку разнорабочим
-готов выйти на смену
-ищу работу на складе
+<pre>Что изменилось       Результат
+────────────────────────────────
+Синонимы             Стали точнее
+Ключевые фразы       Учитывается порядок слов
+Границы слов         Убраны ложные совпадения
+Работодатели         Отсеиваются автоматически
+Боты и реклама       Не попадают в результаты
+Хештеги и ссылки     Не запускают совпадение
+Тихие часы           Очередь проверяется повторно</pre>
+
+<b>Vexa теперь распознаёт признаки вакансий:</b>
+
+• «требуется» и «требуются»
+• «нужен сотрудник» и «ищем людей»
+• обязанности, условия и график
+• ставка, тариф и оплата за смену
+• массовый набор сотрудников
+• шаблонные публикации работодателей
+• рекламные сообщения и объявления ботов
+
+При этом сообщения кандидатов продолжают находиться:
+
+<pre>ищу работу грузчиком
 ищу подработку на складе
-грузчик ищет работу
-комплектовщик ищет работу
-работал на складе
-есть опыт на складе
-ищу вахту
-готов на вахту</pre>
+мне нужна работа водителем
+готов выйти завтра
+есть опыт комплектовщиком</pre>
 
-Минус-слова:
-<pre>требуется
-требуются
-вакансия
-приглашаем
-мы предлагаем
-условия
-обязанности
-зарплата от
-ставка
-смена
-общежитие
-питание
-оформление
-акция</pre>
+<blockquote>Теперь Vexa старается отличать человека, который ищет работу, от работодателя, который ищет сотрудника.</blockquote>
 
-Коротко: ключи помогают найти кандидата, минус-слова убирают вакансии и рекламу.
+Также исправили системные уведомления: жирный текст, курсив и цитаты теперь отображаются правильно, без технических тегов.
 
-<blockquote>Специально для вас собрали готовую базу под вакансии с ключами и минус-словами. Можно открыть, выбрать профессию и сразу скопировать готовый блок для Vexa.</blockquote>
+Продолжаем улучшать качество совпадений на основе реальных сообщений из Telegram."""
 
-"""
 
-keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(
-            text="🚀 Открыть бота",
-            url="https://t.me/vexahelp_bot"
-        )
-    ],
-    [
-        InlineKeyboardButton(
-            text="📗 База ключей",
-            url="https://docs.google.com/spreadsheets/d/1j2vgRFPEO40gJKQoFX9hV6Md41RIxEANjwSe2cpbPa0/edit?gid=1403825979#gid=1403825979"
-        )
-    ],
-    [
-        InlineKeyboardButton(
-            text="💬 Поддержка",
-            url="https://t.me/olenchuk_b"
-        )
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🚀 Открыть Vexa",
+                url="https://t.me/vexahelp_bot",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📗 База ключей",
+                url=(
+                    "https://docs.google.com/spreadsheets/d/"
+                    "1j2vgRFPEO40gJKQoFX9hV6Md41RIxEANjwSe2cpbPa0/"
+                    "edit?gid=1403825979#gid=1403825979"
+                ),
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="💬 Поддержка",
+                url="https://t.me/olenchuk_b",
+            )
+        ],
     ]
-])
+)
 
 
-async def main():
+async def main() -> None:
+    bot_token = input("Вставьте токен Telegram-бота: ").strip()
+
+    if not bot_token:
+        raise RuntimeError("Токен бота не указан.")
+
     session = AiohttpSession(proxy=PROXY)
-    bot = Bot(token=BOT_TOKEN, session=session)
+    bot = Bot(token=bot_token, session=session)
 
     try:
         await bot.send_message(
             chat_id=CHANNEL_ID,
             text=text,
             reply_markup=keyboard,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
-        print("Пост отправлен.")
+        print("Пост успешно отправлен.")
     finally:
         await bot.session.close()
 

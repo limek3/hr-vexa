@@ -16,10 +16,12 @@ from app.db.repositories.notification_deliveries import (
     list_pending_notifications,
     mark_notification_blocked,
     mark_notification_failed,
+    mark_notification_filtered,
     mark_notification_sent,
 )
 from app.db.repositories.user_settings import notifications_paused_for_user
 from app.db.session import SessionLocal
+from app.services.filtering import analyze_match
 from app.services.notifications import MAX_RETRY_AFTER_SECONDS, safe_send_candidate_notification
 
 logger = logging.getLogger(__name__)
@@ -116,10 +118,32 @@ async def deliver_pending_notifications(bot: Bot) -> None:
         for item in pending:
             if await notifications_paused_for_user(session, user_id=item.user.id):
                 continue
+
+            current_analysis = analyze_match(
+                item.message.text,
+                [keyword.value for keyword in item.search.keywords],
+                [minus_word.value for minus_word in item.search.minus_words],
+            )
+            if not current_analysis.matched:
+                await mark_notification_filtered(
+                    session,
+                    delivery_id=item.delivery.id,
+                    reason=current_analysis.reason,
+                )
+                logger.info(
+                    "Queued notification removed by current filter: delivery_id=%s match_id=%s "
+                    "search_id=%s source_id=%s reason=%s",
+                    item.delivery.id,
+                    item.match.id,
+                    item.search.id,
+                    item.source.id,
+                    current_analysis.reason,
+                )
+                continue
             deliverable.append(item)
 
+        await session.commit()
         if not deliverable:
-            await session.commit()
             return
 
         try:

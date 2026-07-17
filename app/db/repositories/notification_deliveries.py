@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Match, Message, NotificationDelivery, Search, Source, User
 
@@ -14,7 +15,7 @@ MAX_DELIVERY_ATTEMPTS = 5
 
 # Statuses that are safe to purge once they age out: they are terminal and
 # carry no further action. "sent" deliveries are kept for audit purposes.
-CLEANABLE_STATUSES = ("blocked", "failed")
+CLEANABLE_STATUSES = ("blocked", "failed", "filtered")
 
 
 @dataclass(slots=True)
@@ -58,6 +59,10 @@ async def list_pending_notifications(
             NotificationDelivery.attempts < MAX_DELIVERY_ATTEMPTS,
             Match.is_hidden.is_(False),
             User.is_blocked.is_(False),
+        )
+        .options(
+            selectinload(Search.keywords),
+            selectinload(Search.minus_words),
         )
         .order_by(NotificationDelivery.created_at.asc(), NotificationDelivery.id.asc())
         .limit(limit),
@@ -103,6 +108,22 @@ async def mark_notification_failed(
     await session.flush()
 
 
+async def mark_notification_filtered(
+    session: AsyncSession,
+    *,
+    delivery_id: int,
+    reason: str,
+) -> None:
+    delivery = await session.get(NotificationDelivery, delivery_id)
+    if not delivery:
+        return
+
+    delivery.status = "filtered"
+    delivery.attempts += 1
+    delivery.last_error = reason[:1000]
+    await session.flush()
+
+
 async def mark_notification_blocked(
     session: AsyncSession,
     *,
@@ -124,7 +145,7 @@ async def cleanup_old_deliveries(
     *,
     older_than_days: int = 30,
 ) -> int:
-    """Delete terminal (blocked/failed) deliveries older than the retention window.
+    """Delete terminal blocked/failed/filtered deliveries older than the retention window.
 
     "sent" deliveries are intentionally kept for audit purposes.
 

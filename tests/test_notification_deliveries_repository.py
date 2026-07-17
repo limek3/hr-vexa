@@ -6,6 +6,7 @@ from app.db.repositories.notification_deliveries import (
     list_pending_notifications,
     mark_notification_blocked,
     mark_notification_failed,
+    mark_notification_filtered,
     mark_notification_sent,
 )
 from tests.factories import make_delivery, make_full_chain
@@ -47,6 +48,21 @@ async def test_mark_notification_blocked_sets_status_and_attempts(session):
     assert delivery.status == "blocked"
     assert delivery.attempts == 1
     assert delivery.last_error == "blocked"
+
+
+async def test_mark_notification_filtered_sets_terminal_status(session):
+    user, _search, _source, _message, match = await make_full_chain(
+        session,
+        telegram_user_id=33,
+        source_ref="ref-filtered-mark",
+    )
+    delivery = await make_delivery(session, user=user, match=match, status="pending", attempts=0)
+
+    await mark_notification_filtered(session, delivery_id=delivery.id, reason="employer")
+
+    assert delivery.status == "filtered"
+    assert delivery.attempts == 1
+    assert delivery.last_error == "employer"
 
 
 async def test_mark_notification_sent_and_failed(session):

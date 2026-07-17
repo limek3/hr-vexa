@@ -80,6 +80,7 @@ async def notify_source_problem(
                         f"{text_value('Статус', status_label)}\n\n"
                         f"<blockquote>{html(hint)}</blockquote>"
                     ),
+                    parse_mode=ParseMode.HTML,
                     disable_web_page_preview=True,
                 )
                 break

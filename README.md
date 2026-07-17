@@ -86,6 +86,15 @@ If the user is not subscribed, Vexa sends one reminder per day with a button to
 
 Use Supabase Session Pooler for `DATABASE_URL` if direct connection does not work from your network.
 
+## Automatic Noise Filtering
+
+For searches aimed at candidates, Vexa automatically rejects employer vacancies,
+order-board templates, recruiting bots, referral posts, advertising, and channel spam.
+The matcher keeps phrase order, respects word boundaries, ignores URLs/usernames/hashtags
+for positive keywords, and uses only conservative, directional synonym groups. User-defined
+minus words are still applied. Existing quiet-hours notifications are rechecked before delivery,
+so matches rejected by the new rules are not sent from an old queue.
+
 ## Local Setup
 
 ```bash
