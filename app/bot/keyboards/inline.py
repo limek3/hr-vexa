@@ -79,7 +79,12 @@ def search_back(search_id: int) -> InlineKeyboardMarkup:
 def search_sources_actions(search_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [button(text="Проверить источники заново", callback_data=f"search:check_sources:{search_id}")],
+            [
+                button(
+                    text="Проверить источники заново",
+                    callback_data=f"search:check_sources:{search_id}",
+                ),
+            ],
             [button(text="Назад", callback_data=f"search:back:{search_id}")],
         ],
     )
@@ -112,8 +117,10 @@ def quiet_hours_actions(enabled: bool) -> InlineKeyboardMarkup:
 def admin_panel_actions() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [button(text="Заблокировавшие бота", callback_data="admin:blocked_list")],
+            [button(text="Рассылка пользователям", callback_data="admin:broadcast")],
             [button(text="Общая статистика", callback_data="admin:stats")],
+            [button(text="Здоровье системы", callback_data="admin:health")],
+            [button(text="Заблокировавшие бота", callback_data="admin:blocked_list")],
             [button(text="Выгрузка Excel", callback_data="admin:export_users")],
             [button(text="Обновить", callback_data="admin:panel")],
         ],
@@ -129,7 +136,11 @@ def admin_back_actions() -> InlineKeyboardMarkup:
 def admin_blocked_list_actions(users: list[User]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for user in users:
-        label = f"@{user.username}" if user.username else (user.first_name or str(user.telegram_user_id))
+        label = (
+            f"@{user.username}"
+            if user.username
+            else (user.first_name or str(user.telegram_user_id))
+        )
         if len(label) > 28:
             label = f"{label[:25]}..."
         rows.append(
@@ -143,3 +154,26 @@ def admin_blocked_list_actions(users: list[User]) -> InlineKeyboardMarkup:
         )
     rows.append([button(text="Назад", callback_data="admin:panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+def admin_broadcast_cancel_actions() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [button(text="Отменить", style="danger", callback_data="admin:broadcast_cancel")],
+        ],
+    )
+
+
+def admin_broadcast_preview_actions() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                button(
+                    text="Отправить всем",
+                    style="success",
+                    callback_data="admin:broadcast_confirm",
+                ),
+            ],
+            [button(text="Отменить", style="danger", callback_data="admin:broadcast_cancel")],
+        ],
+    )
+

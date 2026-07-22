@@ -219,7 +219,15 @@ CANDIDATE_SIGNALS: tuple[tuple[re.Pattern[str], int, str], ...] = (
         "бригада ищет работу",
     ),
     (
-        re.compile(r"\b(?:готов|готова)\s+(?:выйти|приступить|работать|на\s+вахту)\b"),
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:я\s+)?(?:готов|готова)\s+"
+            r"(?:выйти|приступить|работать|на\s+вахту)\b"
+        ),
+        10,
+        "готов приступить",
+    ),
+    (
+        re.compile(r"\bя\s+(?:готов|готова)\s+(?:выйти|приступить|работать)\b"),
         10,
         "готов приступить",
     ),
@@ -278,6 +286,53 @@ EMPLOYER_SIGNALS: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
         ),
         16,
         "работодатель ищет исполнителей",
+        True,
+    ),
+    (
+        re.compile(
+            r"\b(?:я\s+)?ищу(?:\s+[a-zа-яё-]+){0,4}\s+"
+            r"(?:людей|человека|работников|сотрудников|персонал|исполнителей)"
+            r"(?:\s+на\s+(?:работу|подработку|смену))?\b"
+        ),
+        18,
+        "работодатель ищет людей",
+        True,
+    ),
+    (
+        re.compile(
+            r"\bкто\b.{0,80}\b(?:готов|готова|готовы)\s+"
+            r"(?:выйти|приступить|работать)\b",
+            re.DOTALL,
+        ),
+        18,
+        "работодатель обращается к готовым выйти",
+        True,
+    ),
+    (
+        re.compile(
+            r"\b(?:кто|кто-нибудь)\b.{0,70}\b(?:может|сможет)\s+"
+            r"(?:выйти|приступить|поработать)\b",
+            re.DOTALL,
+        ),
+        16,
+        "работодатель ищет свободного исполнителя",
+        True,
+    ),
+    (
+        re.compile(
+            r"\b(?:людей|человека|работников|сотрудников)\s+на\s+"
+            r"(?:работу|подработку|смену)\b"
+        ),
+        16,
+        "поиск людей на работу",
+        True,
+    ),
+    (
+        re.compile(
+            r"\bкто\s+не\s+боится\s+(?:работы|физической\s+работы)\b",
+        ),
+        14,
+        "обращение работодателя к исполнителям",
         True,
     ),
     (
@@ -492,6 +547,13 @@ def _positive_text(value: str) -> str:
 
 def _plain_text(value: str) -> str:
     return SPACE_RE.sub(" ", value.casefold().replace("ё", "е")).strip()
+
+
+def _analysis_text(value: str) -> str:
+    """Normalize text while preserving Telegram line breaks as sentence boundaries."""
+    normalized = value.casefold().replace("ё", "е")
+    normalized = re.sub(r"\s*\n+\s*", ". ", normalized)
+    return SPACE_RE.sub(" ", normalized).strip()
 
 
 def _stem_token(token: str) -> str:
@@ -753,7 +815,7 @@ def _sum_signals(
 
 
 def _message_type_analysis(text: str) -> MessageTypeAnalysis:
-    plain = _plain_text(text)
+    plain = _analysis_text(text)
     candidate_score, candidate_reasons = _sum_signals(plain, CANDIDATE_SIGNALS)
     spam_score, spam_reasons = _sum_signals(plain, SPAM_SIGNALS)
 

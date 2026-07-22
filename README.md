@@ -93,7 +93,9 @@ order-board templates, recruiting bots, referral posts, advertising, and channel
 The matcher keeps phrase order, respects word boundaries, ignores URLs/usernames/hashtags
 for positive keywords, and uses only conservative, directional synonym groups. User-defined
 minus words are still applied. Candidate searches additionally require a real first-person
-job-seeking signal, so a profession name or the word `работа` alone is not sufficient.
+job-seeking signal, so a profession name or the word `работа` alone is not sufficient. Contextual
+phrases such as `готов выйти` are rejected when they occur inside employer wording like `кто готов
+выйти`, `ищу людей на работу`, or `пишите, кто может выйти`.
 
 The `Подходит` / `Не подходит` buttons also affect future filtering for that particular search.
 Vexa compares new messages with recent labeled messages and recognizes repeated templates while
@@ -197,11 +199,16 @@ manually (for example, right after confirming with the user that they unblocked 
 Set `ADMIN_TELEGRAM_IDS` (see above) and send `/admin` from one of those Telegram accounts to
 open an inline-button panel, visible and usable only by those accounts:
 
+- **Рассылка пользователям** — accepts a formatted Telegram message, optionally adds one URL
+  button, shows a preview, and starts only after explicit confirmation. The progress screen shows
+  delivered, blocked, and failed recipients. Only one broadcast can run at a time.
+- **Общая статистика** — instance-wide numbers: total/blocked users, total/active searches,
+  total sources, matches today and all-time.
+- **Здоровье системы** — source counts by access status, notification-delivery counts, and the
+  most recent failed/blocked deliveries with the affected user and search.
 - **Заблокировавшие бота** — the most recent blocked users (up to 10), each with its own
   **Разблокировать** button; tapping it resets `is_blocked` to false for that user and refreshes
   the list in place.
-- **Общая статистика** — instance-wide numbers: total/blocked users, total/active searches,
-  total sources, matches today and all-time.
 - **Выгрузка Excel** — sends admins an `.xlsx` workbook with separate sheets for summary,
   users, searches, sources, matches, messages, and keywords/minus-words. The `Поиски` sheet
   shows configured keywords, minus-words, sources, source statuses, and match counters. The

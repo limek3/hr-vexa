@@ -16,7 +16,6 @@ from app.db.models import (
     SearchSource,
     Source,
     User,
-    Favorite,
     Message,
     NotificationDelivery,
 )
@@ -45,6 +44,23 @@ class GlobalStats:
     sources_total: int
     matches_today: int
     matches_total: int
+
+
+@dataclass(frozen=True)
+class AdminHealthStats:
+    sources_by_status: dict[str, int]
+    deliveries_by_status: dict[str, int]
+
+
+@dataclass(frozen=True)
+class AdminDeliveryIssue:
+    telegram_user_id: int
+    username: str | None
+    search_title: str
+    status: str
+    attempts: int
+    error: str
+    updated_at: object
 
 
 @dataclass(frozen=True)
@@ -503,7 +519,9 @@ async def get_global_stats(session: AsyncSession) -> GlobalStats:
     )
     sources_total = await session.scalar(select(func.count(Source.id)))
     matches_today = await session.scalar(
-        select(func.coalesce(func.sum(DailyStats.matches_count), 0)).where(DailyStats.date == today),
+        select(func.coalesce(func.sum(DailyStats.matches_count), 0)).where(
+            DailyStats.date == today,
+        ),
     )
     matches_total = await session.scalar(select(func.count(Match.id)))
 
@@ -516,3 +534,56 @@ async def get_global_stats(session: AsyncSession) -> GlobalStats:
         matches_today=int(matches_today or 0),
         matches_total=int(matches_total or 0),
     )
+
+
+async def get_admin_health_stats(session: AsyncSession) -> AdminHealthStats:
+    source_result = await session.execute(
+        select(Source.access_status, func.count(Source.id)).group_by(Source.access_status),
+    )
+    delivery_result = await session.execute(
+        select(NotificationDelivery.status, func.count(NotificationDelivery.id)).group_by(
+            NotificationDelivery.status,
+        ),
+    )
+    return AdminHealthStats(
+        sources_by_status={str(status): int(count) for status, count in source_result.all()},
+        deliveries_by_status={str(status): int(count) for status, count in delivery_result.all()},
+    )
+
+
+async def list_recent_delivery_issues(
+    session: AsyncSession,
+    *,
+    limit: int = 8,
+) -> list[AdminDeliveryIssue]:
+    result = await session.execute(
+        select(
+            User.telegram_user_id,
+            User.username,
+            Search.title,
+            NotificationDelivery.status,
+            NotificationDelivery.attempts,
+            NotificationDelivery.last_error,
+            NotificationDelivery.updated_at,
+        )
+        .select_from(NotificationDelivery)
+        .join(User, User.id == NotificationDelivery.user_id)
+        .join(Match, Match.id == NotificationDelivery.match_id)
+        .join(Search, Search.id == Match.search_id)
+        .where(NotificationDelivery.status.in_(("failed", "blocked")))
+        .order_by(NotificationDelivery.updated_at.desc())
+        .limit(limit),
+    )
+    return [
+        AdminDeliveryIssue(
+            telegram_user_id=row[0],
+            username=row[1],
+            search_title=row[2],
+            status=row[3],
+            attempts=int(row[4] or 0),
+            error=row[5] or "",
+            updated_at=row[6],
+        )
+        for row in result.all()
+    ]
+

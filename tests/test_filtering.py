@@ -190,3 +190,17 @@ def test_short_negative_feedback_does_not_become_a_global_minus_phrase():
         feedback_examples=[("Ищу работу", False)],
     )
     assert result.matched is True
+
+
+def test_ready_to_start_key_is_rejected_when_employer_addresses_workers():
+    assert_rejected(
+        """Здравствуйте, ищу адекватных людей на работу
+На пол дня, можна как и целый день
+Кто не боится работы и готов выйти, пишите""",
+        ["готов выйти"],
+    )
+
+
+def test_ready_to_start_key_still_accepts_candidate_context():
+    assert_accepted("Грузчик, есть опыт. Готов выйти завтра.", ["готов выйти"])
+    assert_accepted("Я готов выйти сегодня, ищу подработку грузчиком.", ["готов выйти"])

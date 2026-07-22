@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 from datetime import date
 
-from aiogram.types import User as TelegramUser
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from aiogram.types import User as TelegramUser
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
